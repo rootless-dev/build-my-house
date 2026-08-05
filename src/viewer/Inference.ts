@@ -18,15 +18,15 @@ import {
 import { AXIS_COLORS } from './Overlay';
 
 export type SnapType =
-  | 'ponto'
-  | 'meio'
-  | 'aresta'
+  | 'endpoint'
+  | 'midpoint'
+  | 'edge'
   | 'face'
-  | 'eixo'
-  | 'guia'
-  | 'origem'
-  | 'plano'
-  | 'livre';
+  | 'axis'
+  | 'guide'
+  | 'origin'
+  | 'plane'
+  | 'free';
 
 export interface Snap {
   point: Vec3;
@@ -36,20 +36,20 @@ export interface Snap {
   entity?: EntityRef;
   face?: Face;
   axis?: 'x' | 'y' | 'z';
-  /** Guia a desenhar (do ponto de origem até o ponto inferido). */
+  /** Guide to draw (from the origin point to the inferred point). */
   guideFrom?: Vec3;
 }
 
 const SNAP_COLORS: Record<SnapType, number> = {
-  ponto: 0x1f9d55,
-  meio: 0x14b8c4,
-  aresta: 0xd6304a,
+  endpoint: 0x1f9d55,
+  midpoint: 0x14b8c4,
+  edge: 0xd6304a,
   face: 0x2f6fe0,
-  eixo: 0x8b93a3,
-  guia: 0x7a5cd0,
-  origem: 0xe0a32e,
-  plano: 0x8b93a3,
-  livre: 0x8b93a3,
+  axis: 0x8b93a3,
+  guide: 0x7a5cd0,
+  origin: 0xe0a32e,
+  plane: 0x8b93a3,
+  free: 0x8b93a3,
 };
 
 const AXES: { key: 'x' | 'y' | 'z'; dir: Vec3; name: string }[] = [
@@ -59,9 +59,9 @@ const AXES: { key: 'x' | 'y' | 'z'; dir: Vec3; name: string }[] = [
 ];
 
 /**
- * Motor de inferência: decide em que ponto do espaço o cursor "gruda".
- * A ordem de prioridade imita a do SketchUp — extremidade, meio, aresta,
- * alinhamento com eixo, face, e por fim o plano de trabalho.
+ * Inference engine: decides which point in space the cursor snaps to.
+ * The priority order mirrors SketchUp's — endpoint, midpoint, on-edge, axis
+ * alignment, face, and finally the work plane.
  */
 export class Inference {
   base: Vec3 | null = null;
@@ -97,13 +97,13 @@ export class Inference {
     const ro: Vec3 = [raycaster.ray.origin.x, raycaster.ray.origin.y, raycaster.ray.origin.z];
     const rd: Vec3 = [raycaster.ray.direction.x, raycaster.ray.direction.y, raycaster.ray.direction.z];
 
-    // Eixo travado pelo teclado: nada mais importa.
+    // Axis locked from the keyboard: nothing else matters.
     if (this.base && this.lockAxis) {
       const axis = AXES.find((a) => a.key === this.lockAxis)!;
       const point = this.closestOnLine(ro, rd, this.base, axis.dir) ?? this.base;
       return {
         point,
-        type: 'eixo',
+        type: 'axis',
         axis: axis.key,
         color: AXIS_COLORS[axis.key],
         label: `travado ${axis.name}`,
@@ -112,7 +112,7 @@ export class Inference {
     }
 
     if (this.enabled) {
-      // 1 — extremidades
+      // 1 — endpoints
       let best: Snap | null = null;
       let bestPx = 12;
       for (const v of this.model.vertices.values()) {
@@ -121,8 +121,8 @@ export class Inference {
           bestPx = d;
           best = {
             point: v.p,
-            type: 'ponto',
-            color: SNAP_COLORS.ponto,
+            type: 'endpoint',
+            color: SNAP_COLORS.endpoint,
             label: 'extremidade',
             entity: { kind: 'vertex', id: v.id },
           };
@@ -130,7 +130,7 @@ export class Inference {
       }
       if (best) return this.withOrigin(best);
 
-      // 2 — meio de aresta
+      // 2 — edge midpoints
       bestPx = 11;
       for (const e of this.model.edges.values()) {
         const [a, b] = this.model.edgePoints(e.id);
@@ -140,8 +140,8 @@ export class Inference {
           bestPx = d;
           best = {
             point: mid,
-            type: 'meio',
-            color: SNAP_COLORS.meio,
+            type: 'midpoint',
+            color: SNAP_COLORS.midpoint,
             label: 'ponto médio',
             entity: { kind: 'edge', id: e.id },
           };
@@ -149,7 +149,7 @@ export class Inference {
       }
       if (best) return this.withOrigin(best);
 
-      // 2b — pontos-guia deixados pela trena
+      // 2b — guide points left by the tape measure
       bestPx = 11;
       for (const g of this.model.guides.values()) {
         if (g.dir) continue;
@@ -158,16 +158,16 @@ export class Inference {
           bestPx = d;
           best = {
             point: g.p,
-            type: 'guia',
-            color: SNAP_COLORS.guia,
+            type: 'guide',
+            color: SNAP_COLORS.guide,
             label: 'ponto-guia',
-            entity: { kind: 'guia', id: g.id },
+            entity: { kind: 'guide', id: g.id },
           };
         }
       }
       if (best) return this.withOrigin(best);
 
-      // 3 — alinhamento com os eixos a partir do ponto de origem
+      // 3 — axis alignment from the origin point
       if (this.base) {
         let axisBest: Snap | null = null;
         let axisPx = 10;
@@ -180,7 +180,7 @@ export class Inference {
             axisPx = d;
             axisBest = {
               point: p,
-              type: 'eixo',
+              type: 'axis',
               axis: axis.key,
               color: AXIS_COLORS[axis.key],
               label: axis.name,
@@ -191,7 +191,7 @@ export class Inference {
         if (axisBest) return axisBest;
       }
 
-      // 4 — sobre aresta
+      // 4 — on an edge
       bestPx = 8;
       for (const e of this.model.edges.values()) {
         const [a, b] = this.model.edgePoints(e.id);
@@ -206,8 +206,8 @@ export class Inference {
           bestPx = d;
           best = {
             point: p,
-            type: 'aresta',
-            color: SNAP_COLORS.aresta,
+            type: 'edge',
+            color: SNAP_COLORS.edge,
             label: 'sobre aresta',
             entity: { kind: 'edge', id: e.id },
           };
@@ -215,7 +215,7 @@ export class Inference {
       }
       if (best) return this.withOrigin(best);
 
-      // 4b — sobre uma linha-guia
+      // 4b — on a guide line
       bestPx = 8;
       for (const g of this.model.guides.values()) {
         if (!g.dir) continue;
@@ -227,17 +227,17 @@ export class Inference {
           bestPx = d;
           best = {
             point: p,
-            type: 'guia',
-            color: SNAP_COLORS.guia,
+            type: 'guide',
+            color: SNAP_COLORS.guide,
             label: 'na guia',
-            entity: { kind: 'guia', id: g.id },
+            entity: { kind: 'guide', id: g.id },
           };
         }
       }
       if (best) return this.withOrigin(best);
     }
 
-    // 5 — face sob o cursor
+    // 5 — face under the cursor
     const faceHit = this.view.raycastFace(raycaster);
     if (faceHit) {
       const p: Vec3 = [faceHit.point.x, faceHit.point.y, faceHit.point.z];
@@ -251,27 +251,27 @@ export class Inference {
       };
     }
 
-    // 6 — plano de trabalho (ou o chão)
+    // 6 — work plane (or the ground)
     const plane = this.plane ?? { origin: [0, 0, 0] as Vec3, normal: [0, 0, 1] as Vec3 };
     const hit = rayPlane(ro, rd, plane.origin, plane.normal);
     if (hit) {
-      return { point: hit, type: 'plano', color: SNAP_COLORS.plano, label: this.plane ? 'no plano' : 'no chão' };
+      return { point: hit, type: 'plane', color: SNAP_COLORS.plane, label: this.plane ? 'no plano' : 'no chão' };
     }
-    // 7 — nada intersecta: usa um plano paralelo à tela
+    // 7 — nothing intersects: fall back to a screen-parallel plane
     const fallbackNormal: Vec3 = [-rd[0], -rd[1], -rd[2]];
     const origin = this.base ?? [0, 0, 0];
     const p = rayPlane(ro, rd, origin, fallbackNormal) ?? origin;
-    return { point: p, type: 'livre', color: SNAP_COLORS.livre, label: 'no espaço' };
+    return { point: p, type: 'free', color: SNAP_COLORS.free, label: 'no espaço' };
   }
 
   private withOrigin(snap: Snap): Snap {
     if (dist3(snap.point, [0, 0, 0]) < 1e-6) {
-      return { ...snap, type: 'origem', color: SNAP_COLORS.origem, label: 'origem' };
+      return { ...snap, type: 'origin', color: SNAP_COLORS.origin, label: 'origin' };
     }
     return snap;
   }
 
-  /** Ponto da reta (origin, dir) mais próximo do raio da câmera. */
+  /** Point on the (origin, dir) line closest to the camera ray. */
   private closestOnLine(ro: Vec3, rd: Vec3, origin: Vec3, dir: Vec3): Vec3 | null {
     const hit = lineLineClosest(origin, dir, ro, rd);
     if (!hit) return null;
@@ -279,7 +279,7 @@ export class Inference {
     return add3(origin, mul3(dir, hit.t1));
   }
 
-  /** Projeta um ponto no eixo travado, mantendo o comprimento pedido. */
+  /** Projects a point onto the locked axis, keeping the requested length. */
   static alongAxis(base: Vec3, axis: 'x' | 'y' | 'z', signedLength: number): Vec3 {
     const dir = AXES.find((a) => a.key === axis)!.dir;
     return add3(base, mul3(dir, signedLength));

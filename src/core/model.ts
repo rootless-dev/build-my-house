@@ -1,8 +1,8 @@
 /**
- * O modelo: um grafo de vértices e arestas. As faces são derivadas (ver
- * `faces.ts`). Toda operação de desenho passa por `addSegment`, que quebra
- * arestas em cruzamentos e funde pontos coincidentes — é isso que faz o
- * desenho "grudar" na geometria existente, como no SketchUp.
+ * The model: a graph of vertices and edges. Faces are derived (see `faces.ts`).
+ * Every drawing operation goes through `addSegment`, which splits edges at
+ * crossings and merges coincident points — that is what makes drawing snap onto
+ * the existing geometry, as in SketchUp.
  */
 
 import { extractFaces } from './faces';
@@ -44,15 +44,15 @@ export const DEFAULT_MATERIALS: Material[] = [
 export class Model {
   vertices = new Map<ID, Vertex>();
   edges = new Map<ID, Edge>();
-  /** Faces apagadas explicitamente (ou vazadas por push/pull). */
+  /** Faces deleted explicitly (or punched through by push/pull). */
   suppressed = new Set<string>();
   faceMaterials = new Map<string, string>();
   materials = new Map<string, Material>();
-  /** Cotas, textos e guias: anotações que não entram no grafo de arestas. */
+  /** Dimensions, notes and guides: annotations outside the edge graph. */
   dimensions = new Map<ID, Dimension>();
   notes = new Map<ID, Note>();
   guides = new Map<ID, Guide>();
-  /** Incrementa a cada mudança topológica — invalida o cache de faces. */
+  /** Bumped on every topological change — invalidates the face cache. */
   revision = 0;
 
   private nextId = 1;
@@ -63,7 +63,7 @@ export class Model {
     for (const m of DEFAULT_MATERIALS) this.materials.set(m.id, { ...m });
   }
 
-  // ---------------------------------------------------------------- consultas
+  // ----------------------------------------------------------------- queries
 
   faces(): Face[] {
     if (this.faceCache && this.faceCache.rev === this.revision) return this.faceCache.faces;
@@ -98,12 +98,12 @@ export class Model {
     return { min, max };
   }
 
-  /** Área total das faces, em m². */
+  /** Total face area, in m². */
   totalArea(): number {
     return this.faces().reduce((s, f) => s + f.area, 0);
   }
 
-  // ------------------------------------------------------------------ vértices
+  // ---------------------------------------------------------------- vertices
 
   private gridKey(p: Vec3): string {
     const c = 1 / (MERGE_TOL * 4);
@@ -152,7 +152,7 @@ export class Model {
     return best;
   }
 
-  /** Cria (ou reaproveita) um vértice, quebrando arestas em que o ponto cai. */
+  /** Creates (or reuses) a vertex, splitting any edge the point lands on. */
   addPoint(p: Vec3): ID {
     const existing = this.findVertexAt(p);
     if (existing !== null) return existing;
@@ -191,11 +191,11 @@ export class Model {
     return id;
   }
 
-  // ------------------------------------------------------------------ arestas
+  // ------------------------------------------------------------------- edges
 
   /**
-   * Traça um segmento: funde extremos, corta arestas cruzadas e emenda em
-   * vértices que caem no caminho. Devolve as arestas criadas.
+   * Draws a segment: merges endpoints, cuts crossing edges and stitches through
+   * any vertex that falls on the way. Returns the edges created.
    */
   addSegment(p0: Vec3, p1: Vec3, smooth?: boolean): ID[] {
     if (dist3(p0, p1) < MERGE_TOL) return [];
@@ -207,7 +207,7 @@ export class Model {
     const segLen = len3(dir);
     const dirN = norm3(dir);
 
-    // 1. quebra em cruzamentos com arestas existentes
+    // 1. split at crossings with existing edges
     for (const e of [...this.edges.values()]) {
       if (!this.edges.has(e.id)) continue;
       const ea = this.vertices.get(e.a)!.p;
@@ -221,7 +221,7 @@ export class Model {
       this.addPoint(hit.a);
     }
 
-    // 2. coleta todos os vértices sobre o segmento
+    // 2. collect every vertex lying on the segment
     const onSeg: { t: number; id: ID }[] = [];
     for (const v of this.vertices.values()) {
       const rel = sub3(v.p, a);
@@ -270,7 +270,7 @@ export class Model {
     this.revision++;
   }
 
-  /** Apaga a face e todas as arestas que só pertencem a ela. */
+  /** Deletes the face and every edge that belongs to it alone. */
   deleteFaceAndEdges(face: Face): void {
     const others = this.faces().filter((f) => f.key !== face.key);
     const used = new Set<string>();
@@ -317,7 +317,7 @@ export class Model {
     return out;
   }
 
-  // ---------------------------------------------------------- transformações
+  // ------------------------------------------------------------- transforms
 
   translateVertices(ids: Iterable<ID>, delta: Vec3): void {
     for (const id of ids) {
@@ -356,9 +356,9 @@ export class Model {
     return out;
   }
 
-  // ------------------------------------------------- anotações e construção
+  // --------------------------------------- annotations and construction geometry
 
-  /** Posição atual de uma âncora: segue o vértice enquanto ele existir. */
+  /** Current position of an anchor: follows the vertex while it exists. */
   anchorPoint(a: Anchor): Vec3 {
     if (a.v !== undefined) {
       const v = this.vertices.get(a.v);
@@ -406,15 +406,15 @@ export class Model {
   }
 
   deleteAnnotation(ref: EntityRef): boolean {
-    if (ref.kind === 'cota') return this.dimensions.delete(ref.id) && !!++this.revision;
-    if (ref.kind === 'texto') return this.notes.delete(ref.id) && !!++this.revision;
-    if (ref.kind === 'guia') return this.guides.delete(ref.id) && !!++this.revision;
+    if (ref.kind === 'dimension') return this.dimensions.delete(ref.id) && !!++this.revision;
+    if (ref.kind === 'note') return this.notes.delete(ref.id) && !!++this.revision;
+    if (ref.kind === 'guide') return this.guides.delete(ref.id) && !!++this.revision;
     return false;
   }
 
   // ------------------------------------------------------------- push / pull
 
-  /** A face é a tampa de um prisma reto? Nesse caso empurramos em vez de extrudar. */
+  /** Is the face the cap of a straight prism? Then we stretch instead of extrude. */
   canStretch(face: Face): boolean {
     const faces = this.faces();
     const use = new Map<string, number>();
@@ -436,7 +436,7 @@ export class Model {
         if ((use.get(k) ?? 0) < 2) return false;
       }
     }
-    // cada vértice precisa de uma aresta paralela à normal
+    // every vertex needs an edge parallel to the normal
     const n = face.normal;
     for (const loop of [face.loop, ...face.holes]) {
       for (const vid of loop) {
@@ -458,9 +458,10 @@ export class Model {
   }
 
   /**
-   * Extruda uma face por `dist` ao longo da normal. Se a face for a tampa de um
-   * prisma reto, apenas desloca os vértices (estica o volume). Se o topo pousar
-   * exatamente sobre outra face, vaza — é assim que se faz um vão de janela.
+   * Extrudes a face by `dist` along its normal. When the face is the cap of a
+   * straight prism it merely moves the vertices (stretching the volume). When
+   * the cap lands exactly on another face it punches through — that is how a
+   * window opening is made.
    */
   pushPull(face: Face, dist: number): { mode: 'stretch' | 'extrude'; cut: boolean } {
     if (Math.abs(dist) < MERGE_TOL) return { mode: 'stretch', cut: false };
@@ -474,7 +475,7 @@ export class Model {
       return { mode: 'stretch', cut: false };
     }
 
-    // detecta travessia: o topo cai dentro de outra face coplanar?
+    // detect a punch-through: does the cap land inside another coplanar face?
     const capPts = face.loop.map((id) => add3(this.vertices.get(id)!.p, offset));
     const cut = this.findFaceContaining(capPts, face.key) !== null;
 
@@ -484,7 +485,7 @@ export class Model {
       const pts = loop.map((id) => add3(this.vertices.get(id)!.p, offset));
       const ids: ID[] = [];
       for (const p of pts) ids.push(this.addPoint(p));
-      // paredes laterais + tampa
+      // side walls + cap
       for (let i = 0; i < loop.length; i++) {
         const j = (i + 1) % loop.length;
         this.addSegment(this.vertices.get(ids[i])!.p, this.vertices.get(ids[j])!.p);
@@ -495,16 +496,16 @@ export class Model {
 
     this.revision++;
     if (cut) {
-      // A tampa e a face de origem podem ter sido repartidas por arestas que
-      // já existiam (o rodapé de uma porta, por exemplo). Por isso apagamos
-      // tudo o que couber dentro do contorno, e não uma chave específica.
+      // The cap and the source face may have been split by pre-existing edges
+      // (the sill of a door, say). That is why we suppress everything that fits
+      // inside the outline rather than one specific key.
       this.suppressWithin(face.loop.map((id) => this.vertices.get(id)!.p), face.normal);
       this.suppressWithin(newLoops[0].map((id) => this.vertices.get(id)!.p), face.normal);
     }
     return { mode: 'extrude', cut };
   }
 
-  /** Apaga toda face coplanar contida no contorno dado. */
+  /** Suppresses every coplanar face contained in the given outline. */
   private suppressWithin(poly: Vec3[], normal: Vec3): void {
     const origin = poly[0];
     const [u, v] = planeBasis(normal);
@@ -540,8 +541,8 @@ export class Model {
       if (!coplanar) continue;
       const [u, v] = planeBasis(f.normal);
       const poly = f.loop.map((id) => projectToPlane(this.vertices.get(id)!.p, origin, u, v));
-      // Basta o miolo da tampa cair dentro da face de destino. Ser tolerante
-      // aqui é o que faz uma porta que encosta no piso vazar a parede.
+      // It is enough for the bulk of the cap to fall inside the target face.
+      // Being lenient here is what lets a door touching the floor cut through.
       const cover = pts.filter((p) => {
         const p2 = projectToPlane(p, origin, u, v);
         return pointInPolygon2(p2, poly) || distToPolygon2(p2, poly) < MERGE_TOL * 10;
@@ -552,7 +553,7 @@ export class Model {
     return null;
   }
 
-  /** Deslocamento paralelo do contorno de uma face (bissetrizes). */
+  /** Parallel offset of a face outline (via angle bisectors). */
   offsetLoop(face: Face, dist: number): Vec3[] {
     const pts = this.faceLoopPoints(face);
     const n = face.normal;
@@ -564,7 +565,7 @@ export class Model {
       const next = pts[(i + 1) % count];
       const d1 = norm3(sub3(cur, prev));
       const d2 = norm3(sub3(next, cur));
-      // normais internas de cada aresta (no plano)
+      // inward normals of each edge (within the plane)
       const n1 = norm3(cross3(n, d1));
       const n2 = norm3(cross3(n, d2));
       const bis = norm3(add3(n1, n2));
@@ -574,7 +575,7 @@ export class Model {
     return out;
   }
 
-  // ------------------------------------------------------------- serialização
+  // ------------------------------------------------------------ serialisation
 
   applyMaterial(faceKeyValue: string, materialId: string | null): void {
     if (materialId) this.faceMaterials.set(faceKeyValue, materialId);

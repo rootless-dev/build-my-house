@@ -19,7 +19,7 @@ export function ViewportCanvas({ onReady }: { onReady: (vp: Viewport | null) => 
     const ro = new ResizeObserver(() => vp.resize());
     ro.observe(host);
 
-    // A store é a fonte da verdade da UI; o viewport reage a ela.
+    // The store is the UI's source of truth; the viewport reacts to it.
     const unsubModel = useApp.subscribe((s, prev) => {
       if (s.epoch !== prev.epoch) vp.cancelTool();
       if (s.modelRev !== prev.modelRev) vp.refreshModel();

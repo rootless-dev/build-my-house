@@ -19,8 +19,8 @@ export function formatAngle(rad: number): string {
 }
 
 /**
- * Aceita "3", "3,5", "350cm", "2.4 m", "45mm". Sem sufixo, usa a unidade ativa.
- * Devolve metros, ou null se não der para ler.
+ * Accepts "3", "3,5", "350cm", "2.4 m", "45mm". Without a suffix it uses the
+ * active unit. Returns metres, or null when it cannot be read.
  */
 export function parseLength(text: string, unit: Unit): number | null {
   const t = text.trim().toLowerCase().replace(',', '.');
@@ -33,7 +33,7 @@ export function parseLength(text: string, unit: Unit): number | null {
   return value / FACTOR[u];
 }
 
-/** Lê "3;4" ou "3 x 4" para as duas dimensões de um retângulo. */
+/** Reads "3;4" or "3 x 4" into the two dimensions of a rectangle. */
 export function parsePair(text: string, unit: Unit): [number, number] | null {
   const parts = text.split(/[;x×]/);
   if (parts.length !== 2) return null;
@@ -42,7 +42,7 @@ export function parsePair(text: string, unit: Unit): [number, number] | null {
   return a === null || b === null ? null : [a, b];
 }
 
-/** Lê "1,5" ou "150%" como fator de escala. */
+/** Reads "1,5" or "150%" as a scale factor. */
 export function parseFactor(text: string): number | null {
   const t = text.trim().replace(',', '.');
   const pct = t.endsWith('%');

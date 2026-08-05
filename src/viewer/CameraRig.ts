@@ -1,18 +1,20 @@
 import * as THREE from 'three';
 
+export type StandardView = 'iso' | 'top' | 'front' | 'right' | 'left' | 'back';
+
 /**
- * Câmera orbital com Z para cima, no esquema do SketchUp:
- *   botão do meio        → orbitar
- *   shift + botão do meio → deslocar (pan)
- *   roda                 → zoom na direção do cursor
- * O alvo é um ponto no espaço; a câmera fica sobre uma esfera ao redor dele.
+ * Z-up orbital camera, following the SketchUp scheme:
+ *   middle button         → orbit
+ *   shift + middle button → pan
+ *   wheel                 → zoom towards the cursor
+ * The target is a point in space; the camera sits on a sphere around it.
  */
 export class CameraRig {
   camera: THREE.PerspectiveCamera;
   target = new THREE.Vector3(0, 0, 1.2);
 
-  private theta = -Math.PI * 0.75; // azimute
-  private phi = Math.PI * 0.35; // inclinação a partir do +Z
+  private theta = -Math.PI * 0.75; // azimuth
+  private phi = Math.PI * 0.35; // tilt away from +Z
   private radius = 22;
 
   constructor(aspect: number) {
@@ -50,7 +52,7 @@ export class CameraRig {
     this.apply();
   }
 
-  /** Zoom que aproxima do ponto sob o cursor, como o scroll do SketchUp. */
+  /** Zoom that closes in on the point under the cursor, like SketchUp's scroll. */
   zoom(delta: number, cursorRay?: THREE.Ray): void {
     const factor = Math.exp(delta * 0.0016);
     const newRadius = THREE.MathUtils.clamp(this.radius * factor, 0.15, 4000);
@@ -88,15 +90,15 @@ export class CameraRig {
     this.camera.updateProjectionMatrix();
   }
 
-  /** Vistas padrão de projeto: topo, frente, direita, isométrica. */
-  setStandardView(view: 'iso' | 'topo' | 'frente' | 'direita' | 'esquerda' | 'tras'): void {
-    const angles: Record<string, [number, number]> = {
+  /** Standard drafting views: top, front, right, isometric. */
+  setStandardView(view: StandardView): void {
+    const angles: Record<StandardView, [number, number]> = {
       iso: [-Math.PI * 0.75, Math.PI * 0.35],
-      topo: [-Math.PI / 2, 0.0001],
-      frente: [-Math.PI / 2, Math.PI / 2],
-      tras: [Math.PI / 2, Math.PI / 2],
-      direita: [0, Math.PI / 2],
-      esquerda: [Math.PI, Math.PI / 2],
+      top: [-Math.PI / 2, 0.0001],
+      front: [-Math.PI / 2, Math.PI / 2],
+      back: [Math.PI / 2, Math.PI / 2],
+      right: [0, Math.PI / 2],
+      left: [Math.PI, Math.PI / 2],
     };
     const [t, p] = angles[view];
     this.theta = t;

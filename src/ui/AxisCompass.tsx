@@ -9,8 +9,8 @@ const AXES = [
 ] as const;
 
 /**
- * Bússola de eixos: mostra para onde apontam vermelho, verde e azul na vista
- * atual. Atualiza fora do React para acompanhar a órbita sem re-renderizar.
+ * Axis compass: shows where red, green and blue point in the current view.
+ * Updates outside React so it can follow the orbit without re-rendering.
  */
 export function AxisCompass({ viewportRef }: { viewportRef: RefObject<Viewport | null> }) {
   const lines = useRef<Record<string, SVGLineElement | null>>({});

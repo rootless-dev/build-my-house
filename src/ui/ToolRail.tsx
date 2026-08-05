@@ -11,32 +11,32 @@ interface Entry {
 }
 
 const GROUPS: Entry[][] = [
-  [{ id: 'selecionar', name: 'Selecionar', key: 'Espaço' }],
+  [{ id: 'select', name: 'Selecionar', key: 'Espaço' }],
   [
-    { id: 'linha', name: 'Linha', key: 'L' },
-    { id: 'retangulo', name: 'Retângulo', key: 'R' },
-    { id: 'circulo', name: 'Círculo', key: 'C' },
-    { id: 'poligono', name: 'Polígono', key: 'G' },
-    { id: 'arco', name: 'Arco', key: 'A' },
+    { id: 'line', name: 'Linha', key: 'L' },
+    { id: 'rectangle', name: 'Retângulo', key: 'R' },
+    { id: 'circle', name: 'Círculo', key: 'C' },
+    { id: 'polygon', name: 'Polígono', key: 'G' },
+    { id: 'arc', name: 'Arco', key: 'A' },
   ],
   [
-    { id: 'empurrar', name: 'Empurrar/Puxar', key: 'P' },
-    { id: 'deslocar', name: 'Deslocar', key: 'F' },
-    { id: 'mover', name: 'Mover', key: 'M' },
-    { id: 'girar', name: 'Girar', key: 'Q' },
-    { id: 'escala', name: 'Escala', key: 'S' },
+    { id: 'pushpull', name: 'Empurrar/Puxar', key: 'P' },
+    { id: 'offset', name: 'Deslocar', key: 'F' },
+    { id: 'move', name: 'Mover', key: 'M' },
+    { id: 'rotate', name: 'Girar', key: 'Q' },
+    { id: 'scale', name: 'Escala', key: 'S' },
   ],
   [
-    { id: 'borracha', name: 'Borracha', key: 'E' },
-    { id: 'pintar', name: 'Pintar', key: 'B' },
+    { id: 'eraser', name: 'Borracha', key: 'E' },
+    { id: 'paint', name: 'Pintar', key: 'B' },
   ],
   [
-    { id: 'trena', name: 'Trena e guias', key: 'T' },
-    { id: 'cotar', name: 'Cota', key: 'D' },
-    { id: 'texto', name: 'Texto', key: 'X' },
+    { id: 'tape', name: 'Trena e guias', key: 'T' },
+    { id: 'dimension', name: 'Cota', key: 'D' },
+    { id: 'text', name: 'Texto', key: 'X' },
   ],
   [
-    { id: 'orbitar', name: 'Orbitar', key: 'O' },
+    { id: 'orbit', name: 'Orbitar', key: 'O' },
     { id: 'pan', name: 'Deslocar vista', key: 'H' },
   ],
 ];
@@ -51,8 +51,8 @@ interface Tip {
 export function ToolRail() {
   const tool = useApp((s) => s.tool);
   const setTool = useApp((s) => s.setTool);
-  // O rail rola, e um balão dentro dele seria cortado pelo overflow. Por isso
-  // a dica sai num portal, posicionada em coordenadas de viewport.
+  // The rail scrolls, and a bubble inside it would be clipped by the overflow.
+  // So the tip goes into a portal, positioned in viewport coordinates.
   const [tip, setTip] = useState<Tip | null>(null);
   const railRef = useRef<HTMLElement>(null);
 
@@ -70,10 +70,10 @@ export function ToolRail() {
 
   const show = (el: HTMLElement, entry: Entry) => {
     const r = el.getBoundingClientRect();
-    // Encosta na borda do rail, não na do botão: o botão tem folga lateral e a
-    // dica ficaria por cima da divisória.
-    const borda = railRef.current?.getBoundingClientRect().right ?? r.right;
-    setTip({ name: entry.name, key: entry.key, top: r.top + r.height / 2, left: borda + 10 });
+    // Anchor to the rail edge, not the button's: the button has side padding and
+    // the tip would sit on top of the divider.
+    const railEdge = railRef.current?.getBoundingClientRect().right ?? r.right;
+    setTip({ name: entry.name, key: entry.key, top: r.top + r.height / 2, left: railEdge + 10 });
   };
 
   return (

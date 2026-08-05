@@ -3,8 +3,8 @@ import { useApp } from '../state/store';
 import type { Viewport } from '../viewer/Viewport';
 
 /**
- * A caixa de medidas (VCB). Mostra o valor que a ferramenta está lendo e
- * aceita um valor exato: digite e dê Enter para mandar na geometria.
+ * The measurement box (VCB). Shows the value the active tool is reading and
+ * accepts an exact one: type and press Enter to drive the geometry.
  */
 export const StatusBar = forwardRef<HTMLInputElement, { vp: Viewport | null }>(function StatusBar({ vp }, ref) {
   const status = useApp((s) => s.status);

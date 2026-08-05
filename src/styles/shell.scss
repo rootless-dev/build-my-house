@@ -1,0 +1,831 @@
+@use 'tokens' as *;
+
+// The application shell: the loading screen and the project menu. The 3D
+// viewport and its bars live in app.scss; this is the drafting room's lobby.
+
+// ----------------------------------------------------------------- buttons
+
+.btn {
+  @include label;
+  @include focus-ring;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 9px 14px;
+  border-radius: $radius;
+  border: 1px solid $line;
+  background: $ink-800;
+  color: $text-dim;
+  transition: background 120ms, border-color 120ms, color 120ms;
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  &:hover {
+    background: $ink-700;
+    border-color: $ink-600;
+    color: $text;
+  }
+
+  &--primary {
+    background: $ochre;
+    border-color: $ochre;
+    color: $ink-950;
+
+    &:hover {
+      background: $ochre-bright;
+      border-color: $ochre-bright;
+      color: $ink-950;
+    }
+  }
+
+  &--subtle {
+    background: transparent;
+    border-color: transparent;
+    color: $text-faint;
+    padding: 6px 10px;
+
+    &:hover {
+      background: $ink-800;
+      color: $text;
+    }
+  }
+
+  &--danger {
+    background: $axis-x;
+    border-color: $axis-x;
+    color: #fff;
+
+    &:hover {
+      background: $axis-x-soft;
+      border-color: $axis-x-soft;
+      color: $ink-950;
+    }
+  }
+}
+
+// ----------------------------------------------------------------- confirm
+
+.confirm {
+  width: min(400px, calc(100vw - 40px));
+  padding: 20px;
+  border: 1px solid $line;
+  border-radius: $radius-lg;
+  background: $ink-850;
+  color: $text;
+  box-shadow: 0 22px 60px rgb(0 0 0 / 0.55);
+
+  &::backdrop {
+    background: rgb(8 10 14 / 0.62);
+    backdrop-filter: blur(2px);
+  }
+
+  &__title {
+    @include label;
+    font-size: 14px;
+    margin: 0 0 10px;
+  }
+
+  &__body {
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: $text-dim;
+    margin: 0 0 20px;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+}
+
+.iconbtn {
+  @include focus-ring;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: $radius;
+  border: 1px solid transparent;
+  color: $text-faint;
+
+  svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  &:hover {
+    background: $ink-700;
+    border-color: $ink-600;
+    color: $text;
+  }
+
+  &--danger:hover {
+    background: rgba($axis-x, 0.16);
+    border-color: rgba($axis-x, 0.5);
+    color: $axis-x-soft;
+  }
+}
+
+// ----------------------------------------------------------- loading screen
+
+.boot {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 32%, rgba($ochre, 0.07), transparent 62%),
+    repeating-linear-gradient(0deg, transparent 0 39px, rgba($line, 0.35) 39px 40px),
+    repeating-linear-gradient(90deg, transparent 0 39px, rgba($line, 0.35) 39px 40px),
+    $ink-950;
+
+  &__sheet {
+    width: min(420px, calc(100vw - 48px));
+    text-align: center;
+  }
+
+  &__brand {
+    @include label;
+    font-size: 26px;
+    letter-spacing: 0.16em;
+  }
+
+  &__brand-weak {
+    color: $text-faint;
+    font-weight: 400;
+  }
+
+  &__sub {
+    @include mono;
+    font-size: 10.5px;
+    color: $text-faint;
+    letter-spacing: 0.08em;
+    margin-top: 6px;
+  }
+
+  &__bar {
+    height: 3px;
+    background: $ink-800;
+    border-radius: 2px;
+    overflow: hidden;
+    margin: 26px 0 18px;
+  }
+
+  &__fill {
+    height: 100%;
+    background: $ochre;
+    transition: width 260ms ease-out;
+
+    &--error {
+      background: $axis-x;
+    }
+  }
+
+  &__steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    text-align: left;
+  }
+
+  &__step {
+    display: grid;
+    grid-template-columns: 18px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 2px;
+    font-size: 13px;
+    color: $text-faint;
+    transition: color 160ms;
+
+    &--running {
+      color: $text;
+    }
+    &--done {
+      color: $text-dim;
+    }
+    &--failed {
+      color: $axis-x-soft;
+    }
+  }
+
+  &__glyph {
+    width: 10px;
+    height: 10px;
+    margin-left: 4px;
+    border-radius: 50%;
+    border: 1.5px solid currentColor;
+    opacity: 0.4;
+  }
+
+  &__step--running &__glyph {
+    opacity: 1;
+    border-color: $ochre;
+    border-top-color: transparent;
+    animation: boot-spin 700ms linear infinite;
+  }
+
+  // The "done" glyph is a tick drawn from two borders of a rotated box.
+  &__step--done &__glyph {
+    opacity: 1;
+    width: 5px;
+    height: 9px;
+    margin-left: 6px;
+    border-radius: 0;
+    border-width: 0 1.5px 1.5px 0;
+    border-color: currentColor;
+    transform: rotate(43deg) translate(-1px, -1px);
+  }
+
+  &__step--failed &__glyph {
+    opacity: 1;
+    background: currentColor;
+    border-color: currentColor;
+  }
+
+  &__note {
+    @include mono;
+    font-size: 10px;
+    color: $text-faint;
+    max-width: 190px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__pct {
+    @include mono;
+    font-size: 11px;
+    color: $text-faint;
+    margin-top: 18px;
+  }
+
+  &__error {
+    margin-top: 18px;
+    padding: 14px;
+    border: 1px solid rgba($axis-x, 0.45);
+    border-radius: $radius;
+    background: rgba($axis-x, 0.08);
+
+    p {
+      margin: 0 0 12px;
+      font-size: 13px;
+      color: $text-dim;
+      line-height: 1.45;
+    }
+  }
+}
+
+@keyframes boot-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// -------------------------------------------------------------- project menu
+
+.home {
+  height: 100%;
+  display: grid;
+  grid-template-columns: 268px 1fr;
+  background: $ink-950;
+  position: relative;
+
+  &__side {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 20px 16px 16px;
+    background: linear-gradient(180deg, $ink-900, $ink-950);
+    border-right: 1px solid $line;
+    overflow: hidden;
+  }
+
+  &__brand {
+    @include label;
+    font-size: 15px;
+    letter-spacing: 0.13em;
+    line-height: 1.1;
+    margin-bottom: 14px;
+  }
+
+  &__brand-weak {
+    color: $text-faint;
+    font-weight: 400;
+  }
+
+  &__brand-sub {
+    @include mono;
+    display: block;
+    font-size: 9.5px;
+    letter-spacing: 0.06em;
+    color: $text-faint;
+    text-transform: none;
+    font-weight: 400;
+    margin-top: 5px;
+  }
+
+  &__cta {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  &__nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 18px;
+  }
+
+  &__navitem {
+    @include label;
+    @include focus-ring;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    padding: 8px 10px;
+    border-radius: $radius;
+    color: $text-faint;
+    border-left: 2px solid transparent;
+
+    svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    &:hover {
+      background: $ink-850;
+      color: $text-dim;
+    }
+
+    &--on {
+      background: $ink-850;
+      color: $text;
+      border-left-color: $ochre;
+    }
+  }
+
+  &__badge {
+    @include mono;
+    margin-left: auto;
+    font-style: normal;
+    font-size: 10px;
+    color: $text-faint;
+    background: $ink-800;
+    border-radius: 9px;
+    padding: 1px 7px;
+  }
+
+  &__spacer {
+    flex: 1;
+  }
+
+  &__storage {
+    border-top: 1px solid $line-soft;
+    padding-top: 14px;
+  }
+
+  &__storage-top {
+    @include mono;
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: $text-faint;
+    margin-bottom: 7px;
+  }
+
+  &__meter {
+    height: 3px;
+    border-radius: 2px;
+    background: $ink-800;
+    overflow: hidden;
+  }
+
+  &__meter-fill {
+    height: 100%;
+    background: $ochre-dim;
+    min-width: 2px;
+  }
+
+  &__storage-note {
+    font-size: 11.5px;
+    line-height: 1.4;
+    color: $text-faint;
+    margin: 9px 0 0;
+  }
+
+  // ------------------------------------------------------------------ content
+
+  &__main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 22px 28px 16px;
+    border-bottom: 1px solid $line-soft;
+  }
+
+  &__title {
+    @include label;
+    font-size: 19px;
+    letter-spacing: 0.1em;
+    margin: 0;
+    flex: 1;
+  }
+
+  &__tools {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__search {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 9px;
+    border: 1px solid $line;
+    border-radius: $radius;
+    background: $ink-900;
+    color: $text-faint;
+
+    svg {
+      width: 14px;
+      height: 14px;
+      flex: none;
+    }
+
+    input {
+      @include mono;
+      width: 168px;
+      border: none;
+      outline: none;
+      background: none;
+      padding: 7px 0;
+      font-size: 12px;
+      color: $text;
+
+      &::placeholder {
+        color: $text-faint;
+      }
+    }
+
+    &:focus-within {
+      border-color: $ink-600;
+    }
+  }
+
+  &__select {
+    @include mono;
+    font-size: 11.5px;
+    padding: 7px 9px;
+    border-radius: $radius;
+    border: 1px solid $line;
+    background: $ink-900;
+    color: $text-dim;
+    @include focus-ring;
+  }
+
+  &__layout {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid $line;
+    border-radius: $radius;
+    background: $ink-900;
+  }
+
+  &__layoutbtn {
+    @include focus-ring;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 3px;
+    color: $text-faint;
+
+    svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    &:hover {
+      color: $text-dim;
+    }
+
+    &--on {
+      background: $ink-700;
+      color: $text;
+    }
+  }
+
+  &__error {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 14px 28px 0;
+    padding: 10px 14px;
+    font-size: 13px;
+    border: 1px solid rgba($axis-x, 0.45);
+    background: rgba($axis-x, 0.1);
+    border-radius: $radius;
+    color: $text;
+
+    button {
+      @include label;
+      margin-left: auto;
+      font-size: 11px;
+      color: $text-dim;
+    }
+  }
+
+  &__scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 28px 40px;
+  }
+
+  &__section {
+    margin-top: 26px;
+  }
+
+  &__sectionhead {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+
+  &__subtitle {
+    @include label;
+    font-size: 12px;
+    color: $text-dim;
+    margin: 0 0 14px;
+  }
+
+  &__sectionhead &__subtitle {
+    margin-bottom: 0;
+    flex: 1;
+  }
+
+  &__empty {
+    font-size: 13.5px;
+    color: $text-faint;
+    padding: 26px 0;
+    margin: 0;
+  }
+
+  &__drop {
+    @include label;
+    position: absolute;
+    inset: 12px;
+    display: grid;
+    place-items: center;
+    font-size: 14px;
+    color: $ochre;
+    border: 2px dashed $ochre;
+    border-radius: $radius-lg;
+    background: rgba($ink-950, 0.86);
+    pointer-events: none;
+  }
+}
+
+// --------------------------------------------------------------- starting points
+
+.starters {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(184px, 1fr));
+  gap: 12px;
+}
+
+.starter {
+  @include focus-ring;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 14px;
+  text-align: left;
+  border: 1px solid $line;
+  border-radius: $radius-lg;
+  background: linear-gradient(180deg, $ink-850, $ink-900);
+  transition: border-color 130ms, transform 130ms;
+
+  &:hover {
+    border-color: $ink-600;
+    transform: translateY(-1px);
+  }
+
+  &:hover &__art {
+    color: $ochre;
+  }
+
+  &__art {
+    display: block;
+    width: 100%;
+    color: $text-faint;
+    margin-bottom: 8px;
+    transition: color 130ms;
+
+    svg {
+      width: 84px;
+      height: 52px;
+    }
+  }
+
+  &__name {
+    @include label;
+    font-size: 12.5px;
+    color: $text;
+  }
+
+  &__hint {
+    font-size: 12px;
+    color: $text-faint;
+    line-height: 1.35;
+  }
+}
+
+// ------------------------------------------------------------------- projects
+
+.cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+
+  &--grid {
+    grid-template-columns: repeat(auto-fill, minmax(206px, 1fr));
+  }
+
+  &--list {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
+.thumb {
+  display: block;
+  aspect-ratio: 16 / 10;
+  border-radius: $radius;
+  overflow: hidden;
+  background: $ink-800;
+  border: 1px solid $line-soft;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  &__empty {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    color: $ink-600;
+
+    svg {
+      width: 34px;
+      height: 34px;
+    }
+  }
+}
+
+.card {
+  position: relative;
+  min-width: 0;
+
+  &__open {
+    @include focus-ring;
+    display: block;
+    width: 100%;
+    border-radius: $radius;
+
+    &:disabled {
+      cursor: default;
+    }
+  }
+
+  &:hover .thumb {
+    border-color: $ink-600;
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 9px 2px 0;
+    min-width: 0;
+  }
+
+  &__name {
+    @include focus-ring;
+    font-size: 13.5px;
+    color: $text;
+    text-align: left;
+    padding: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &:hover:not(:disabled) {
+      color: $ochre;
+    }
+
+    &:disabled {
+      cursor: default;
+      color: $text-dim;
+    }
+  }
+
+  &__rename {
+    @include mono;
+    font-size: 12.5px;
+    background: $ink-950;
+    border: 1px solid $ochre;
+    border-radius: 3px;
+    padding: 2px 6px;
+    outline: none;
+    width: 100%;
+  }
+
+  &__meta {
+    @include mono;
+    font-size: 10.5px;
+    color: $text-faint;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__actions {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: $radius;
+    background: rgba($ink-950, 0.82);
+    backdrop-filter: blur(3px);
+    opacity: 0;
+    transition: opacity 120ms;
+  }
+
+  &:hover &__actions,
+  &:focus-within &__actions {
+    opacity: 1;
+  }
+}
+
+// The list view reuses the same pieces, laid on their side.
+.cards--list .card {
+  display: grid;
+  grid-template-columns: 76px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 7px 8px;
+  border-radius: $radius;
+  border-bottom: 1px solid $line-soft;
+
+  &:hover {
+    background: $ink-900;
+  }
+
+  .card__body {
+    padding: 0;
+  }
+
+  .card__actions {
+    position: static;
+    opacity: 1;
+    background: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (max-width: 780px) {
+  .home {
+    grid-template-columns: 1fr;
+
+    &__side {
+      display: none;
+    }
+  }
+}

@@ -17,14 +17,14 @@ import {
 import { formatArea, formatLength, parseLength } from '../core/units';
 import type { Snap } from '../viewer/Inference';
 
-/** Âncora a partir do que a inferência capturou — gruda no vértice quando há um. */
+/** Anchor from whatever inference caught — pins to the vertex when there is one. */
 function anchorFrom(snap: Snap): { p: Vec3; v?: number } {
   return snap.entity?.kind === 'vertex' ? { p: snap.point, v: snap.entity.id } : { p: snap.point };
 }
 
 /**
- * O deslocamento da cota corre num plano que contém o segmento medido e fica
- * o mais de frente possível para a câmera — assim arrastar sempre responde.
+ * The dimension offset runs on a plane that contains the measured segment and
+ * faces the camera as squarely as possible — so dragging always responds.
  */
 function offsetPlaneNormal(from: Vec3, to: Vec3, viewDir: Vec3): Vec3 {
   const d = norm3(sub3(to, from));
@@ -33,9 +33,9 @@ function offsetPlaneNormal(from: Vec3, to: Vec3, viewDir: Vec3): Vec3 {
 }
 
 /**
- * O afastamento da cota sempre assenta num eixo. Cota torta é ruído numa
- * prancha: das direções perpendiculares ao segmento, escolhemos a que o cursor
- * mais persegue, e o tamanho é o quanto ele andou nela.
+ * The dimension offset always settles on an axis. A skewed dimension is noise
+ * on a drawing sheet: of the directions perpendicular to the segment we pick
+ * the one the cursor chases most, and the size is how far it travelled along it.
  */
 function axisOffset(relative: Vec3, along: Vec3): Vec3 {
   const perp = sub3(relative, mul3(along, dot3(relative, along)));
@@ -55,9 +55,9 @@ function axisOffset(relative: Vec3, along: Vec3): Vec3 {
   return mul3(best, bestReach);
 }
 
-/** Cota: marca a medida no modelo, presa aos pontos escolhidos. */
-export class CotarTool extends Tool {
-  readonly id: ToolId = 'cotar';
+/** Dimension: marks the measurement on the model, pinned to the chosen points. */
+export class DimensionTool extends Tool {
+  readonly id: ToolId = 'dimension';
   private a: Anchor | null = null;
   private b: Anchor | null = null;
   private offset: Vec3 = [0, 0, 0];
@@ -72,8 +72,8 @@ export class CotarTool extends Tool {
   pointerDown(p: PointerInfo): void {
     const model = this.host.model;
     if (!this.a) {
-      // clicar sobre uma aresta cota a aresta inteira de uma vez
-      if (p.snap.entity?.kind === 'edge' && p.snap.type === 'aresta') {
+      // clicking on an edge dimensions the whole edge at once
+      if (p.snap.entity?.kind === 'edge' && p.snap.type === 'edge') {
         const edge = model.edges.get(p.snap.entity.id);
         if (edge) {
           this.a = model.makeAnchor(model.vertexPos(edge.a), edge.a);
@@ -93,8 +93,8 @@ export class CotarTool extends Tool {
       const anchor = anchorFrom(p.snap);
       if (dist3(anchor.p, this.a.p) < 1e-4) return;
       this.b = model.makeAnchor(anchor.p, anchor.v);
-      // A origem segue sendo o primeiro ponto: assim as setas travam o
-      // afastamento num eixo, do mesmo jeito que nas outras ferramentas.
+      // The origin stays the first point, so the arrow keys lock the offset to
+      // an axis just like they do in the other tools.
       this.host.inference.base = this.a.p;
       this.host.status(this.hint());
       return;
@@ -106,7 +106,7 @@ export class CotarTool extends Tool {
     const model = this.host.model;
     this.host.overlay.clear();
     if (!this.a) {
-      if (p.snap.entity?.kind === 'edge' && p.snap.type === 'aresta') {
+      if (p.snap.entity?.kind === 'edge' && p.snap.type === 'edge') {
         const [ea, eb] = model.edgePoints(p.snap.entity.id);
         this.host.overlay.polyline([ea, eb]);
         this.host.measure(formatLength(dist3(ea, eb), this.host.unit), 'aresta inteira');
@@ -185,14 +185,14 @@ export class CotarTool extends Tool {
 }
 
 /**
- * Texto com linha de chamada. O texto inicial já vem preenchido com o que faz
- * sentido para o que foi clicado — área da face, comprimento da aresta ou as
- * coordenadas do ponto. Duplo clique na etiqueta reescreve.
+ * Text with a leader line. The initial text is prefilled with whatever makes
+ * sense for what was clicked — face area, edge length or the point coordinates.
+ * Double-clicking the label rewrites it.
  */
-export class TextoTool extends Tool {
-  readonly id: ToolId = 'texto';
+export class TextTool extends Tool {
+  readonly id: ToolId = 'text';
   private anchor: Anchor | null = null;
-  private texto = '';
+  private text = '';
 
   hint(): string {
     return this.anchor
@@ -216,7 +216,7 @@ export class TextoTool extends Tool {
     if (!this.anchor) {
       const a = anchorFrom(p.snap);
       this.anchor = this.host.model.makeAnchor(a.p, a.v);
-      this.texto = this.describe(p.snap);
+      this.text = this.describe(p.snap);
       this.host.inference.base = this.anchor.p;
       this.host.status(this.hint());
       return;
@@ -224,7 +224,7 @@ export class TextoTool extends Tool {
     const base = this.host.model.anchorPoint(this.anchor);
     const offset = sub3(this.lastPoint ?? base, base);
     if (len3(offset) < 1e-3) return;
-    this.host.model.addNote(this.anchor, offset, this.texto);
+    this.host.model.addNote(this.anchor, offset, this.text);
     this.host.refreshModel();
     this.host.commit('Texto');
     this.anchor = null;
@@ -245,7 +245,7 @@ export class TextoTool extends Tool {
     const base = this.host.model.anchorPoint(this.anchor);
     this.lastPoint = p.snap.point;
     this.host.overlay.polyline([base, p.snap.point]);
-    this.host.measure(this.texto, 'texto da nota');
+    this.host.measure(this.text, 'texto da nota');
     this.host.requestRender();
   }
 

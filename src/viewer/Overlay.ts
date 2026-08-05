@@ -6,7 +6,7 @@ import type { Vec3 } from '../core/math';
 
 export const AXIS_COLORS = { x: 0xd6304a, y: 0x2e9e5b, z: 0x2e6fd6 };
 
-/** Camada 3D efêmera: elásticos de desenho, guias de eixo e pré-visualizações. */
+/** Ephemeral 3D layer: drawing rubber bands, axis guides and previews. */
 export class Overlay {
   group = new THREE.Group();
 
@@ -15,7 +15,7 @@ export class Overlay {
     x: new LineMaterial({ color: AXIS_COLORS.x, linewidth: 1.6, dashed: true, dashSize: 0.16, gapSize: 0.12 }),
     y: new LineMaterial({ color: AXIS_COLORS.y, linewidth: 1.6, dashed: true, dashSize: 0.16, gapSize: 0.12 }),
     z: new LineMaterial({ color: AXIS_COLORS.z, linewidth: 1.6, dashed: true, dashSize: 0.16, gapSize: 0.12 }),
-    neutro: new LineMaterial({ color: 0x6d7480, linewidth: 1.4, dashed: true, dashSize: 0.14, gapSize: 0.1 }),
+    neutral: new LineMaterial({ color: 0x6d7480, linewidth: 1.4, dashed: true, dashSize: 0.14, gapSize: 0.1 }),
   };
   private ghostMat = new THREE.MeshBasicMaterial({
     color: 0x2f6fe0,
@@ -24,7 +24,7 @@ export class Overlay {
     side: THREE.DoubleSide,
     depthWrite: false,
   });
-  private trash: THREE.BufferGeometry[] = [];
+  private disposables: THREE.BufferGeometry[] = [];
 
   constructor() {
     this.group.renderOrder = 10;
@@ -38,8 +38,8 @@ export class Overlay {
   }
 
   clear(): void {
-    for (const g of this.trash) g.dispose();
-    this.trash = [];
+    for (const g of this.disposables) g.dispose();
+    this.disposables = [];
     this.group.clear();
   }
 
@@ -55,11 +55,11 @@ export class Overlay {
     this.addSegments(coords, this.rubberMat);
   }
 
-  guide(from: Vec3, to: Vec3, axis: 'x' | 'y' | 'z' | 'neutro'): void {
+  guide(from: Vec3, to: Vec3, axis: 'x' | 'y' | 'z' | 'neutral'): void {
     this.addSegments([from[0], from[1], from[2], to[0], to[1], to[2]], this.guideMats[axis]);
   }
 
-  /** Prisma translúcido mostrando para onde o push/pull vai levar a face. */
+  /** Translucent prism showing where push/pull will take the face. */
   ghostPrism(loop: Vec3[], normal: Vec3, dist: number): void {
     if (loop.length < 3 || Math.abs(dist) < 1e-6) return;
     const top = loop.map((p): Vec3 => [p[0] + normal[0] * dist, p[1] + normal[1] * dist, p[2] + normal[2] * dist]);
@@ -74,7 +74,7 @@ export class Overlay {
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    this.trash.push(geo);
+    this.disposables.push(geo);
     const mesh = new THREE.Mesh(geo, this.ghostMat);
     mesh.renderOrder = 9;
     this.group.add(mesh);
@@ -84,7 +84,7 @@ export class Overlay {
   private addSegments(coords: number[], material: LineMaterial): void {
     const geo = new LineSegmentsGeometry();
     geo.setPositions(coords);
-    this.trash.push(geo);
+    this.disposables.push(geo);
     const line = new LineSegments2(geo, material);
     line.computeLineDistances();
     line.frustumCulled = false;

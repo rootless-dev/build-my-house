@@ -35,7 +35,7 @@ select {
   color: inherit;
 }
 
-// ---------------------------------------------------------------- estrutura
+// ------------------------------------------------------------------ layout
 
 .app {
   display: grid;
@@ -78,7 +78,7 @@ select {
     }
   }
 
-  // "my" recua para o olho ler Build···House como logotipo, não como frase.
+  // "my" recedes so the eye reads Build···House as a logotype, not a sentence.
   &__mark-weak {
     color: $text-faint;
     font-weight: 400;
@@ -115,6 +115,31 @@ select {
 
   &__spacer {
     flex: 1;
+  }
+
+  // Project name and, right below it, the autosave state.
+  &__project {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  &__save {
+    @include mono;
+    font-size: 9.5px;
+    letter-spacing: 0.03em;
+    padding-left: 9px;
+    color: $text-faint;
+
+    &--dirty {
+      color: $ochre-dim;
+    }
+    &--saving {
+      color: $ochre;
+    }
+    &--error {
+      color: $axis-x-soft;
+    }
   }
 
   &__group {
@@ -220,8 +245,8 @@ select {
 
 }
 
-// Dica da ferramenta: nome e atalho. Fica num portal no body porque o rail
-// rola, e qualquer coisa posicionada dentro dele seria cortada.
+// Tool tip: name and shortcut. It lives in a portal on the body because the
+// rail scrolls, and anything positioned inside it would be clipped.
 .tool-tip {
   position: fixed;
   z-index: 60;
@@ -308,8 +333,8 @@ select {
   white-space: nowrap;
 }
 
-// Etiquetas de cota e texto: DOM sobre o canvas, para o texto sair nítido
-// e sempre de frente, como no SketchUp.
+// Dimension and note labels: DOM over the canvas, so the text stays crisp and
+// always faces the camera, as in SketchUp.
 .label-layer {
   position: absolute;
   inset: 0;
@@ -337,7 +362,7 @@ select {
     border-color: rgb(27 31 38 / 0.25);
   }
 
-  &--nota {
+  &--note {
     font-family: 'Barlow Semi Condensed', system-ui, sans-serif;
     font-size: 13px;
     letter-spacing: 0.01em;
@@ -349,7 +374,7 @@ select {
     border-color: #2f6fe0;
   }
 
-  &--editando {
+  &--editing {
     background: #fff;
     border-color: $ochre;
     box-shadow: 0 0 0 2px rgb(224 163 46 / 0.35);
@@ -405,7 +430,7 @@ select {
   }
 }
 
-// ----------------------------------------------------------------- painel
+// ------------------------------------------------------------------- panel
 
 .panel {
   grid-area: panel;
@@ -700,7 +725,7 @@ select {
   }
 }
 
-// A caixa de medidas: o instrumento da prancheta.
+// The measurement box: the drafting board's instrument.
 .vcb {
   display: flex;
   align-items: stretch;
@@ -762,7 +787,7 @@ select {
   }
 }
 
-// ------------------------------------------------------------- responsivo
+// -------------------------------------------------------------- responsive
 
 @media (max-width: 900px) {
   .app {

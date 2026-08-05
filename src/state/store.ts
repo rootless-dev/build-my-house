@@ -5,7 +5,7 @@ import type { ToolId } from '../tools/base';
 import type { ViewStyle } from '../viewer/ModelView';
 import type { Unit } from '../core/units';
 
-/** Instância única do modelo. Mutável fora do React — a store só avisa a UI. */
+/** Single model instance. Mutated outside React — the store only notifies the UI. */
 export const model = new Model();
 
 const HISTORY_LIMIT = 80;
@@ -14,6 +14,8 @@ export interface Toast {
   id: number;
   text: string;
 }
+
+export type SaveState = 'clean' | 'dirty' | 'saving' | 'error';
 
 interface AppState {
   tool: ToolId;
@@ -30,14 +32,20 @@ interface AppState {
   measureValue: string;
   measureHint: string;
   toast: Toast | null;
-  /** Sobe a cada operação confirmada — quem depende do modelo observa isto. */
+  /** Bumped on every committed operation — model consumers watch this. */
   modelRev: number;
-  /** Sobe quando o modelo é trocado por inteiro (novo, abrir, desfazer). */
+  /** Bumped when the whole model is swapped (new, open, undo). */
   epoch: number;
   undoStack: { label: string; snap: ModelSnapshot }[];
   redoStack: { label: string; snap: ModelSnapshot }[];
   baseline: ModelSnapshot;
   projectName: string;
+  /** Id in the local library; null until the project has been written. */
+  projectId: string | null;
+  saveState: SaveState;
+  lastSavedAt: number | null;
+  /** `modelRev` at the last save — the gap is what still needs writing. */
+  savedRev: number;
 
   setTool: (id: ToolId) => void;
   setSelection: (refs: EntityRef[]) => void;
@@ -55,18 +63,22 @@ interface AppState {
   redo: () => void;
   resetProject: () => void;
   loadSnapshot: (snap: ModelSnapshot, name: string) => void;
+  openProject: (snap: ModelSnapshot, name: string, id: string | null) => void;
   setProjectName: (name: string) => void;
+  setSaveState: (state: SaveState) => void;
+  /** `rev` is the `modelRev` captured when the write started. */
+  markSaved: (id: string, at: number, rev: number) => void;
 }
 
 let toastId = 0;
 
 export const useApp = create<AppState>((set, get) => ({
-  tool: 'linha',
+  tool: 'line',
   selection: [],
   activeMaterial: null,
   unit: 'm',
   polygonSides: 6,
-  style: 'sombreado',
+  style: 'shaded',
   showHidden: false,
   showGrid: true,
   showShadows: true,
@@ -81,6 +93,10 @@ export const useApp = create<AppState>((set, get) => ({
   redoStack: [],
   baseline: model.toSnapshot(),
   projectName: 'Casa sem nome',
+  projectId: null,
+  saveState: 'clean',
+  lastSavedAt: null,
+  savedRev: 0,
 
   setTool: (id) => set({ tool: id }),
   setSelection: (refs) => set({ selection: refs, modelRev: get().modelRev + 1 }),
@@ -102,6 +118,7 @@ export const useApp = create<AppState>((set, get) => ({
       redoStack: [],
       baseline: model.toSnapshot(),
       modelRev: modelRev + 1,
+      saveState: 'dirty',
     });
   },
 
@@ -120,6 +137,7 @@ export const useApp = create<AppState>((set, get) => ({
       selection: [],
       modelRev: get().modelRev + 1,
       epoch: get().epoch + 1,
+      saveState: 'dirty',
       status: `Desfeito: ${last.label}`,
     });
   },
@@ -137,6 +155,7 @@ export const useApp = create<AppState>((set, get) => ({
       selection: [],
       modelRev: get().modelRev + 1,
       epoch: get().epoch + 1,
+      saveState: 'dirty',
       status: `Refeito: ${last.label}`,
     });
   },
@@ -151,23 +170,45 @@ export const useApp = create<AppState>((set, get) => ({
       modelRev: get().modelRev + 1,
       epoch: get().epoch + 1,
       projectName: 'Casa sem nome',
+      projectId: null,
+      saveState: 'clean',
+      lastSavedAt: null,
+      savedRev: get().modelRev + 1,
       status: 'Projeto novo. Comece pelo contorno da planta.',
     });
   },
 
-  loadSnapshot: (snap, name) => {
+  loadSnapshot: (snap, name) => get().openProject(snap, name, null),
+
+  openProject: (snap, name, id) => {
     model.loadSnapshot(snap);
+    const rev = get().modelRev + 1;
     set({
       undoStack: [],
       redoStack: [],
       baseline: model.toSnapshot(),
       selection: [],
-      modelRev: get().modelRev + 1,
+      modelRev: rev,
       epoch: get().epoch + 1,
       projectName: name,
+      projectId: id,
+      // Freshly opened from the library it is already written; coming from a
+      // file or a template it is not — hence the state depending on the id.
+      saveState: id ? 'clean' : 'dirty',
+      lastSavedAt: id ? Date.now() : null,
+      savedRev: rev,
       status: `Projeto aberto: ${name}`,
     });
   },
 
-  setProjectName: (projectName) => set({ projectName }),
+  setProjectName: (projectName) => set({ projectName, saveState: 'dirty' }),
+  setSaveState: (saveState) => set({ saveState }),
+  markSaved: (projectId, lastSavedAt, rev) =>
+    set((s) => ({
+      projectId,
+      lastSavedAt,
+      savedRev: rev,
+      // If the model moved during the write, there is still something to save.
+      saveState: s.modelRev > rev ? 'dirty' : 'clean',
+    })),
 }));

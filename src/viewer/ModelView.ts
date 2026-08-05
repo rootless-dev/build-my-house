@@ -8,7 +8,7 @@ import { tessellateFace } from '../core/tessellate';
 import { buildAnnotations, type LabelSpec } from './annotations';
 import type { Unit } from '../core/units';
 
-export type ViewStyle = 'sombreado' | 'linhas' | 'oculta' | 'raiox';
+export type ViewStyle = 'shaded' | 'wireframe' | 'hiddenline' | 'xray';
 
 const BACK_COLOR = 0x7f96ab;
 const DEFAULT_FRONT = 0xf3f1ec;
@@ -21,12 +21,12 @@ interface Bucket {
   idx: number[];
 }
 
-/** Constrói os objetos three.js a partir do modelo. Reconstrução completa a
- *  cada mudança — os modelos aqui são pequenos e isso mantém tudo previsível. */
+/** Builds the three.js objects from the model. Full rebuild on every change —
+ *  the models here are small and it keeps everything predictable. */
 export class ModelView {
   group = new THREE.Group();
   pickMesh: THREE.Mesh | null = null;
-  /** Etiquetas de cota e texto, desenhadas em DOM pelo Viewport. */
+  /** Dimension and note labels, drawn in the DOM by the Viewport. */
   labels: LabelSpec[] = [];
 
   private faceMats = new Map<string, THREE.MeshStandardMaterial>();
@@ -68,7 +68,7 @@ export class ModelView {
   }
 
   private materialFor(model: Model, id: string | undefined): THREE.MeshStandardMaterial {
-    const key = id ?? '__padrao';
+    const key = id ?? '__default';
     let mat = this.faceMats.get(key);
     const spec = id ? model.materials.get(id) : undefined;
     if (!mat) {
@@ -109,13 +109,13 @@ export class ModelView {
     const faces = model.faces();
     const buckets = new Map<string, Bucket>();
     const pickPos: number[] = [];
-    const showFaces = opts.style !== 'linhas';
+    const showFaces = opts.style !== 'wireframe';
 
     for (const face of faces) {
       const t = tessellateFace(model, face);
       if (!t) continue;
       const matId = model.faceMaterials.get(face.key);
-      const key = matId ?? '__padrao';
+      const key = matId ?? '__default';
       let b = buckets.get(key);
       if (!b) {
         b = { pos: [], nor: [], uv: [], idx: [] };
@@ -148,18 +148,18 @@ export class ModelView {
         geo.setIndex(b.idx);
         this.disposables.push(geo);
 
-        const front = this.materialFor(model, key === '__padrao' ? undefined : key);
-        if (opts.style === 'oculta') {
+        const front = this.materialFor(model, key === '__default' ? undefined : key);
+        if (opts.style === 'hiddenline') {
           front.color.set(0xffffff);
           front.roughness = 1;
         }
-        if (opts.style === 'raiox') {
+        if (opts.style === 'xray') {
           front.transparent = true;
           front.opacity = 0.34;
           front.depthWrite = false;
         }
         const meshFront = new THREE.Mesh(geo, front);
-        meshFront.castShadow = opts.style === 'sombreado';
+        meshFront.castShadow = opts.style === 'shaded';
         meshFront.receiveShadow = true;
         this.group.add(meshFront);
 
@@ -168,9 +168,9 @@ export class ModelView {
         meshBack.receiveShadow = true;
         this.group.add(meshBack);
       }
-      this.backMat.transparent = opts.style === 'raiox';
-      this.backMat.opacity = opts.style === 'raiox' ? 0.3 : 1;
-      this.backMat.depthWrite = opts.style !== 'raiox';
+      this.backMat.transparent = opts.style === 'xray';
+      this.backMat.opacity = opts.style === 'xray' ? 0.3 : 1;
+      this.backMat.depthWrite = opts.style !== 'xray';
     }
 
     if (pickPos.length) {
@@ -184,7 +184,7 @@ export class ModelView {
       this.group.add(this.pickMesh);
     }
 
-    // ---- arestas -----------------------------------------------------------
+    // ---- edges -------------------------------------------------------------
     const usage = new Map<string, number>();
     for (const f of faces) {
       for (const loop of [f.loop, ...f.holes]) {
@@ -216,7 +216,7 @@ export class ModelView {
     this.addLines(profile, this.profileMat);
     this.addLines(selected, this.selEdgeMat);
 
-    // ---- realce de seleção -------------------------------------------------
+    // ---- selection highlight -----------------------------------------------
     if (opts.selection.size) {
       const pos: number[] = [];
       const idx: number[] = [];
@@ -239,7 +239,7 @@ export class ModelView {
       }
     }
 
-    // ---- cotas, textos e guias ---------------------------------------------
+    // ---- dimensions, notes and guides --------------------------------------
     const notes = buildAnnotations(model, opts.unit, opts.selectedAnnotations, opts.showGuides);
     this.addLines(notes.lines, this.annotationMat);
     this.addLines(notes.guideLines, this.guideMat);
@@ -260,7 +260,7 @@ export class ModelView {
     this.group.add(line);
   }
 
-  /** Face sob o raio, se houver. */
+  /** Face under the ray, if any. */
   raycastFace(raycaster: THREE.Raycaster): { face: Face; point: THREE.Vector3 } | null {
     if (!this.pickMesh) return null;
     const hits = raycaster.intersectObject(this.pickMesh, false);

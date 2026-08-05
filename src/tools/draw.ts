@@ -13,7 +13,7 @@ import {
 } from '../core/math';
 import { formatLength, parseLength, parsePair } from '../core/units';
 
-/** Plano de trabalho corrente: origem + base ortonormal alinhada aos eixos. */
+/** Current work plane: origin plus an axis-aligned orthonormal basis. */
 function workPlane(origin: Vec3, normal: Vec3): { o: Vec3; n: Vec3; u: Vec3; v: Vec3 } {
   const n = norm3(normal);
   let u: Vec3;
@@ -28,8 +28,8 @@ function onPlane(p: Vec3, plane: { o: Vec3; n: Vec3 }): Vec3 {
   return sub3(p, mul3(plane.n, d));
 }
 
-export class LinhaTool extends Tool {
-  readonly id: ToolId = 'linha';
+export class LineTool extends Tool {
+  readonly id: ToolId = 'line';
   private points: Vec3[] = [];
   private lastDir: Vec3 | null = null;
 
@@ -122,8 +122,8 @@ export class LinhaTool extends Tool {
   }
 }
 
-export class RetanguloTool extends Tool {
-  readonly id: ToolId = 'retangulo';
+export class RectangleTool extends Tool {
+  readonly id: ToolId = 'rectangle';
   private start: Vec3 | null = null;
   private plane = workPlane([0, 0, 0], AXIS_Z);
   private corners: Vec3[] = [];
@@ -241,7 +241,7 @@ class CircularTool extends Tool {
   }
 
   protected segments(): number {
-    return this.id === 'poligono' ? this.host.polygonSides : this.sides;
+    return this.id === 'polygon' ? this.host.polygonSides : this.sides;
   }
 
   pointerDown(p: PointerInfo): void {
@@ -265,7 +265,7 @@ class CircularTool extends Tool {
     this.radius = dist3(point, this.center);
     this.host.overlay.clear();
     this.host.overlay.polyline(this.ring(this.radius), true);
-    this.host.overlay.guide(this.center, point, 'neutro');
+    this.host.overlay.guide(this.center, point, 'neutral');
     this.host.measure(formatLength(this.radius, this.host.unit), 'raio');
     this.host.requestRender();
   }
@@ -283,7 +283,7 @@ class CircularTool extends Tool {
   }
 
   private build(radius: number): void {
-    this.host.model.addPolyline(this.ring(radius), true, this.id === 'circulo');
+    this.host.model.addPolyline(this.ring(radius), true, this.id === 'circle');
     this.host.refreshModel();
     this.host.commit(this.label);
     this.center = null;
@@ -316,30 +316,30 @@ class CircularTool extends Tool {
   }
 }
 
-export class CirculoTool extends CircularTool {
+export class CircleTool extends CircularTool {
   constructor(host: ToolHost) {
-    super(host, 'circulo', 32, 'Círculo');
+    super(host, 'circle', 32, 'Círculo');
   }
 }
 
-export class PoligonoTool extends CircularTool {
+export class PolygonTool extends CircularTool {
   constructor(host: ToolHost) {
-    super(host, 'poligono', 6, 'Polígono');
+    super(host, 'polygon', 6, 'Polígono');
   }
 }
 
 /**
- * Arco por corda e flecha: dois cliques definem a corda, o terceiro puxa a
- * curvatura. Sai como uma sequência de segmentos suavizados, do mesmo jeito
- * que o SketchUp trata um arco.
+ * Arc by chord and sagitta: two clicks set the chord, the third pulls the
+ * curvature. It comes out as a run of smoothed segments, the same way SketchUp
+ * treats an arc.
  */
-export class ArcoTool extends Tool {
-  readonly id: ToolId = 'arco';
+export class ArcTool extends Tool {
+  readonly id: ToolId = 'arc';
   private a: Vec3 | null = null;
   private b: Vec3 | null = null;
   private plane = workPlane([0, 0, 0], AXIS_Z);
-  private pontos: Vec3[] = [];
-  private flecha = 0;
+  private arcPts: Vec3[] = [];
+  private sagitta = 0;
 
   hint(): string {
     if (!this.a) return 'Clique no início da corda do arco.';
@@ -385,15 +385,15 @@ export class ArcoTool extends Tool {
     const mid = mul3(add3(this.a, this.b), 0.5);
     const chord = norm3(sub3(this.b, this.a));
     const outward = norm3(cross3(this.plane.n, chord));
-    this.flecha = dot3(sub3(cursor, mid), outward);
-    this.pontos = this.arcPoints(this.flecha);
-    this.host.overlay.polyline(this.pontos);
-    this.host.overlay.guide(this.a, this.b, 'neutro');
-    this.host.measure(formatLength(Math.abs(this.flecha), this.host.unit), 'flecha');
+    this.sagitta = dot3(sub3(cursor, mid), outward);
+    this.arcPts = this.arcPoints(this.sagitta);
+    this.host.overlay.polyline(this.arcPts);
+    this.host.overlay.guide(this.a, this.b, 'neutral');
+    this.host.measure(formatLength(Math.abs(this.sagitta), this.host.unit), 'flecha');
     this.host.requestRender();
   }
 
-  /** Pontos do arco que passa por A e B com a flecha `s` medida no meio da corda. */
+  /** Points of the arc through A and B with sagitta `s` measured at the chord midpoint. */
   private arcPoints(s: number): Vec3[] {
     const a = this.a!;
     const b = this.b!;
@@ -411,27 +411,27 @@ export class ArcoTool extends Tool {
       const rel = sub3(p, center);
       return Math.atan2(dot3(rel, outward), dot3(rel, chord));
     };
-    // Escolhe o sentido do percurso que passa pelo ápice — é o que decide se o
-    // arco é o pedaço curto ou o longo do círculo.
+    // Pick the sweep direction that passes through the apex — that is what
+    // decides whether the arc is the short or the long piece of the circle.
     const a0 = ang(a);
     const tau = Math.PI * 2;
     const ccw = (x: number) => (((x - a0) % tau) + tau) % tau;
-    const paraB = ccw(ang(b));
-    const fim = ccw(ang(apex)) <= paraB ? a0 + paraB : a0 - (tau - paraB);
+    const toB = ccw(ang(b));
+    const end = ccw(ang(apex)) <= toB ? a0 + toB : a0 - (tau - toB);
     const out: Vec3[] = [];
     for (let i = 0; i <= segments; i++) {
-      const t = a0 + (fim - a0) * (i / segments);
+      const t = a0 + (end - a0) * (i / segments);
       out.push(add3(center, add3(mul3(chord, Math.cos(t) * radius), mul3(outward, Math.sin(t) * radius))));
     }
     return out;
   }
 
   private build(): void {
-    if (this.pontos.length < 2) {
+    if (this.arcPts.length < 2) {
       this.cancel();
       return;
     }
-    this.host.model.addPolyline(this.pontos, false, true);
+    this.host.model.addPolyline(this.arcPts, false, true);
     this.host.refreshModel();
     this.host.commit('Arco');
     this.cancel();
@@ -441,7 +441,7 @@ export class ArcoTool extends Tool {
     if (!this.a || !this.b) return false;
     const s = parseLength(text, this.host.unit);
     if (s === null || Math.abs(s) < 1e-5) return false;
-    this.pontos = this.arcPoints(this.flecha < 0 ? -Math.abs(s) : Math.abs(s));
+    this.arcPts = this.arcPoints(this.sagitta < 0 ? -Math.abs(s) : Math.abs(s));
     this.build();
     return true;
   }
@@ -457,8 +457,8 @@ export class ArcoTool extends Tool {
   cancel(): void {
     this.a = null;
     this.b = null;
-    this.pontos = [];
-    this.flecha = 0;
+    this.arcPts = [];
+    this.sagitta = 0;
     this.reset();
     this.host.status(this.hint());
   }
