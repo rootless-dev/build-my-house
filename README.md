@@ -4,6 +4,8 @@ Ferramenta web de modelagem 3D de construções, no espírito do SketchUp da ép
 do Google: você desenha no chão, empurra a face para cima e a casa aparece.
 React + TypeScript + three.js, sem dependência de servidor.
 
+**No ar:** <https://rootless-dev.github.io/build-my-house/>
+
 ```bash
 npm install
 npm run dev
@@ -115,14 +117,21 @@ O build sai com caminhos **relativos** (`base: './'` no `vite.config.ts`), entã
 funciona tanto na raiz de um domínio quanto dentro de uma subpasta — que é o
 caso do Pages de projeto, em `usuario.github.io/build-my-house/`.
 
-Já existe o workflow em `.github/workflows/deploy.yml`. Para ligar:
+Já está ligado. A cada merge na `main`, o workflow `deploy.yml` roda lint, build
+e publica em <https://rootless-dev.github.io/build-my-house/>.
 
-1. `git init && git add . && git commit -m "primeiro commit"`
-2. Crie o repositório no GitHub e faça o push na branch `main`.
-3. Em **Settings → Pages**, escolha **Source: GitHub Actions**.
+### Fluxo de trabalho
 
-A cada push na `main` o workflow roda lint, build e publica. Repositório privado
-precisa de plano pago para usar o Pages; público funciona no plano gratuito.
+`main` e `develop` são protegidas: nenhuma das duas aceita push direto, force
+push ou deleção — nem do dono do repositório. Toda mudança entra por pull
+request com o check `verificar` (tipos, lint e build) verde.
+
+```
+feature/algo  →  PR  →  develop  →  PR  →  main  →  publica sozinho
+```
+
+Não é preciso aprovação de terceiros (o repositório é de uma pessoa só), mas a
+CI precisa passar e a branch precisa estar atualizada com o destino.
 
 Para conferir localmente como vai ficar numa subpasta:
 
