@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Build my house">
+  <title>Build my house</title>
+  <!-- Ladrilho grafite: o mesmo cromo da interface. -->
+  <rect width="32" height="32" rx="7" fill="#15181f" />
+
+  <!-- Eixos do chão saindo de baixo da casa: vermelho X, verde Y. -->
+  <path d="M5.09 21.35 3.36 20.35" stroke="#d6304a" stroke-width="2.2" stroke-linecap="round" />
+  <path d="M26.91 21.35 28.64 20.35" stroke="#2e9e5b" stroke-width="2.2" stroke-linecap="round" />
+
+  <!-- Volume isométrico com sombreamento plano, como o modelo aparece no visor. -->
+  <path d="M26.91 21.35 16 27.65V18.2L26.91 11.9Z" fill="#9c9689" />
+  <path d="M5.09 21.35 16 27.65V18.2L5.09 11.9Z" fill="#c9c4b9" />
+  <path d="M5.09 11.9 16 18.2 10.54 10.64Z" fill="#c9c4b9" />
+  <path d="M21.46 4.34 26.91 11.9 16 18.2 10.54 10.64Z" fill="#e2ddd2" />
+  <path d="M21.46 4.34 10.54 10.64 5.09 11.9 16 5.6Z" fill="#f4f2ed" />
+</svg>

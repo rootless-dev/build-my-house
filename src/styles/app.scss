@@ -1,0 +1,811 @@
+@use 'tokens' as *;
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: 'Barlow Semi Condensed', system-ui, sans-serif;
+  background: $ink-950;
+  color: $text;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+// ---------------------------------------------------------------- estrutura
+
+.app {
+  display: grid;
+  grid-template-columns: $rail 1fr auto;
+  grid-template-rows: $topbar 1fr $statusbar;
+  grid-template-areas:
+    'top top top'
+    'rail viewport panel'
+    'status status status';
+  height: 100%;
+}
+
+// ------------------------------------------------------------------ topbar
+
+.topbar {
+  grid-area: top;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 12px 0 14px;
+  background: linear-gradient(180deg, $ink-850, $ink-900);
+  border-bottom: 1px solid $line;
+
+  &__brand {
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+    padding-right: 4px;
+  }
+
+  &__mark {
+    @include label;
+    font-size: 15px;
+    letter-spacing: 0.14em;
+    color: $text;
+    white-space: nowrap;
+
+    &--short {
+      display: none;
+    }
+  }
+
+  // "my" recua para o olho ler Build···House como logotipo, não como frase.
+  &__mark-weak {
+    color: $text-faint;
+    font-weight: 400;
+  }
+
+  &__sub {
+    @include mono;
+    font-size: 10px;
+    color: $text-faint;
+    letter-spacing: 0.04em;
+  }
+
+  &__name {
+    @include mono;
+    font-size: 12.5px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: $radius;
+    padding: 5px 8px;
+    width: 200px;
+    color: $text-dim;
+    @include focus-ring;
+
+    &:hover {
+      border-color: $line;
+    }
+    &:focus {
+      border-color: $ink-600;
+      color: $text;
+      background: $ink-950;
+      outline: none;
+    }
+  }
+
+  &__spacer {
+    flex: 1;
+  }
+
+  &__group {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding-right: 12px;
+    border-right: 1px solid $line-soft;
+
+    &:last-child {
+      border-right: none;
+      padding-right: 0;
+    }
+  }
+}
+
+.tbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 9px;
+  border-radius: $radius;
+  color: $text-dim;
+  @include label;
+  font-size: 11px;
+  transition: background 120ms, color 120ms;
+  @include focus-ring;
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  &:hover:not(:disabled) {
+    background: $ink-700;
+    color: $text;
+  }
+
+  &:disabled {
+    opacity: 0.32;
+    cursor: default;
+  }
+
+  &--icon {
+    padding: 0 7px;
+  }
+
+  &--on {
+    background: $ink-700;
+    color: $ochre;
+  }
+}
+
+// ------------------------------------------------------------------- rail
+
+.rail {
+  grid-area: rail;
+  background: $ink-900;
+  border-right: 1px solid $line;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0;
+  gap: 3px;
+  overflow-y: auto;
+  scrollbar-width: none;
+
+  &__sep {
+    width: 24px;
+    height: 1px;
+    background: $line;
+    margin: 6px 0;
+  }
+}
+
+.tool {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: $radius;
+  color: $text-dim;
+  transition: background 110ms, color 110ms;
+  @include focus-ring;
+
+  svg {
+    width: 21px;
+    height: 21px;
+  }
+
+  &:hover {
+    background: $ink-700;
+    color: $text;
+  }
+
+  &--active {
+    background: $ink-700;
+    color: $ochre;
+    box-shadow: inset 2px 0 0 $ochre;
+  }
+
+}
+
+// Dica da ferramenta: nome e atalho. Fica num portal no body porque o rail
+// rola, e qualquer coisa posicionada dentro dele seria cortada.
+.tool-tip {
+  position: fixed;
+  z-index: 60;
+  transform: translateY(-50%);
+  pointer-events: none;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  background: $ink-950;
+  border: 1px solid $line;
+  border-radius: $radius;
+  padding: 6px 10px;
+  white-space: nowrap;
+  @include label;
+  font-size: 11px;
+  color: $text;
+  box-shadow: 0 6px 22px rgb(0 0 0 / 0.45);
+  animation: tip-in 90ms ease-out;
+
+  &__key {
+    @include mono;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 10.5px;
+    color: $ochre;
+  }
+}
+
+@keyframes tip-in {
+  from {
+    opacity: 0;
+    transform: translate(-4px, -50%);
+  }
+}
+
+// --------------------------------------------------------------- viewport
+
+.viewport {
+  grid-area: viewport;
+  position: relative;
+  overflow: hidden;
+  background: $paper;
+}
+
+.viewport-stage {
+  position: absolute;
+  inset: 0;
+}
+
+.viewport-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.viewport-hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.snap-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 11px;
+  height: 11px;
+  margin: -5.5px 0 0 -5.5px;
+  border: 2px solid transparent;
+  border-radius: 1px;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.65);
+}
+
+.snap-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  @include label;
+  font-size: 10.5px;
+  text-shadow:
+    0 1px 0 rgb(255 255 255 / 0.85),
+    0 0 4px rgb(255 255 255 / 0.9);
+  white-space: nowrap;
+}
+
+// Etiquetas de cota e texto: DOM sobre o canvas, para o texto sair nítido
+// e sempre de frente, como no SketchUp.
+.label-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.annotation-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: auto;
+  cursor: pointer;
+  white-space: nowrap;
+  @include mono;
+  font-size: 11.5px;
+  line-height: 1;
+  color: #1b1f26;
+  background: rgb(255 255 255 / 0.82);
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 3px 5px;
+  user-select: none;
+
+  &:hover {
+    background: rgb(255 255 255 / 0.96);
+    border-color: rgb(27 31 38 / 0.25);
+  }
+
+  &--nota {
+    font-family: 'Barlow Semi Condensed', system-ui, sans-serif;
+    font-size: 13px;
+    letter-spacing: 0.01em;
+  }
+
+  &--on {
+    background: #2f6fe0;
+    color: #fff;
+    border-color: #2f6fe0;
+  }
+
+  &--editando {
+    background: #fff;
+    border-color: $ochre;
+    box-shadow: 0 0 0 2px rgb(224 163 46 / 0.35);
+    cursor: text;
+    user-select: text;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $ochre;
+    outline-offset: 1px;
+  }
+}
+
+.compass {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  width: 74px;
+  height: 74px;
+  pointer-events: none;
+
+  svg {
+    overflow: visible;
+  }
+
+  text {
+    @include mono;
+    font-size: 8px;
+    font-weight: 500;
+  }
+}
+
+.toast {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  background: rgb(16 18 24 / 0.94);
+  border: 1px solid $line;
+  border-radius: $radius-lg;
+  padding: 9px 15px;
+  @include label;
+  font-size: 11.5px;
+  color: $text;
+  box-shadow: 0 8px 26px rgb(0 0 0 / 0.35);
+  animation: toast-in 180ms ease-out;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+}
+
+// ----------------------------------------------------------------- painel
+
+.panel {
+  grid-area: panel;
+  width: $panel;
+  background: $ink-900;
+  border-left: 1px solid $line;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  &--hidden {
+    display: none;
+  }
+
+  &__tabs {
+    display: flex;
+    border-bottom: 1px solid $line;
+    flex: none;
+  }
+
+  &__tab {
+    flex: 1;
+    height: 34px;
+    @include label;
+    font-size: 11px;
+    color: $text-faint;
+    border-bottom: 2px solid transparent;
+    @include focus-ring;
+
+    &:hover {
+      color: $text-dim;
+    }
+
+    &--on {
+      color: $text;
+      border-bottom-color: $ochre;
+      background: $ink-850;
+    }
+  }
+
+  &__body {
+    overflow-y: auto;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+}
+
+.group {
+  &__title {
+    @include label;
+    font-size: 10px;
+    color: $text-faint;
+    margin: 0 0 9px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    &::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: $line-soft;
+    }
+  }
+}
+
+.readout {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 10px;
+
+  dt {
+    @include label;
+    font-size: 10.5px;
+    color: $text-faint;
+  }
+
+  dd {
+    @include mono;
+    font-size: 12px;
+    margin: 0;
+    color: $text;
+    text-align: right;
+  }
+}
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.swatch {
+  aspect-ratio: 1;
+  border-radius: $radius;
+  border: 1px solid rgb(0 0 0 / 0.4);
+  position: relative;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18);
+  @include focus-ring;
+
+  &--on {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.18),
+      0 0 0 2px $ochre;
+  }
+
+  &--none {
+    background:
+      repeating-linear-gradient(45deg, $ink-700 0 5px, $ink-800 5px 10px);
+  }
+}
+
+.active-material {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+
+  .swatch {
+    width: 46px;
+    height: 46px;
+    flex: none;
+  }
+}
+
+.linkish {
+  @include label;
+  font-size: 10px;
+  color: $text-faint;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 3px 0;
+  @include focus-ring;
+
+  &:hover {
+    color: $ochre;
+  }
+}
+
+.material-name {
+  @include mono;
+  font-size: 11px;
+  color: $text-dim;
+  margin-top: 8px;
+  min-height: 15px;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+
+  label {
+    @include label;
+    font-size: 10.5px;
+    color: $text-dim;
+  }
+
+  select,
+  input[type='number'] {
+    @include mono;
+    font-size: 12px;
+    background: $ink-950;
+    border: 1px solid $line;
+    border-radius: $radius;
+    padding: 5px 7px;
+    min-width: 88px;
+    @include focus-ring;
+  }
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+
+  button {
+    @include label;
+    font-size: 10.5px;
+    color: $text-dim;
+    background: $ink-850;
+    border: 1px solid $line-soft;
+    border-radius: $radius;
+    padding: 7px 6px;
+    @include focus-ring;
+
+    &:hover {
+      border-color: $ink-600;
+      color: $text;
+    }
+
+    &.on {
+      background: $ink-700;
+      border-color: $ochre-dim;
+      color: $ochre;
+    }
+  }
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 0;
+  cursor: pointer;
+  @include label;
+  font-size: 10.5px;
+  color: $text-dim;
+
+  input {
+    appearance: none;
+    width: 15px;
+    height: 15px;
+    border: 1px solid $line;
+    border-radius: 3px;
+    background: $ink-950;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    @include focus-ring;
+
+    &:checked {
+      background: $ochre;
+      border-color: $ochre;
+
+      &::after {
+        content: '';
+        width: 8px;
+        height: 4px;
+        border-left: 2px solid $ink-950;
+        border-bottom: 2px solid $ink-950;
+        transform: translateY(-1px) rotate(-45deg);
+      }
+    }
+  }
+
+  &:hover {
+    color: $text;
+  }
+}
+
+.hintlist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 7px;
+
+  li {
+    display: grid;
+    grid-template-columns: 76px 1fr;
+    gap: 10px;
+    align-items: baseline;
+    font-size: 12.5px;
+    color: $text-dim;
+  }
+
+  kbd {
+    @include mono;
+    font-size: 10px;
+    color: $text;
+    background: $ink-800;
+    border: 1px solid $line;
+    border-bottom-width: 2px;
+    border-radius: 3px;
+    padding: 2px 5px;
+    text-align: center;
+  }
+}
+
+// -------------------------------------------------------------- statusbar
+
+.statusbar {
+  grid-area: status;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 12px;
+  background: $ink-900;
+  border-top: 1px solid $line;
+
+  &__hint {
+    flex: 1;
+    font-size: 13px;
+    color: $text-dim;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+// A caixa de medidas: o instrumento da prancheta.
+.vcb {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid $line;
+  border-radius: $radius;
+  background: $ink-950;
+  overflow: hidden;
+  min-width: 232px;
+
+  &:focus-within {
+    border-color: $ochre-dim;
+    box-shadow: 0 0 0 1px $ochre-dim;
+  }
+
+  &__label {
+    @include label;
+    font-size: 9.5px;
+    color: $text-faint;
+    display: grid;
+    place-items: center;
+    padding: 0 9px;
+    background: $ink-850;
+    border-right: 1px solid $line;
+    white-space: nowrap;
+  }
+
+  &__field {
+    position: relative;
+    flex: 1;
+  }
+
+  &__ghost {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    @include mono;
+    font-size: 13px;
+    color: $text-faint;
+    pointer-events: none;
+    letter-spacing: 0.02em;
+  }
+
+  input {
+    width: 100%;
+    height: 26px;
+    background: transparent;
+    border: none;
+    padding: 0 10px;
+    @include mono;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    color: $ochre;
+
+    &:focus {
+      outline: none;
+    }
+  }
+}
+
+// ------------------------------------------------------------- responsivo
+
+@media (max-width: 900px) {
+  .app {
+    grid-template-columns: $rail 1fr;
+    grid-template-areas:
+      'top top'
+      'rail viewport'
+      'status status';
+  }
+
+  .panel {
+    position: absolute;
+    right: 0;
+    top: $topbar;
+    bottom: $statusbar;
+    z-index: 30;
+    box-shadow: -12px 0 30px rgb(0 0 0 / 0.4);
+  }
+
+  .topbar__name {
+    width: 120px;
+  }
+
+  .topbar__mark--full {
+    display: none;
+  }
+
+  .topbar__mark--short {
+    display: inline;
+  }
+
+  .topbar__sub {
+    display: none;
+  }
+
+  .tbtn span {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

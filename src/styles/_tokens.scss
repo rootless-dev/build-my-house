@@ -1,0 +1,51 @@
+// Sistema visual: prancheta de arquiteto. Cromo grafite, visor claro,
+// e o vermelho/verde/azul dos eixos como única fonte de cor de acento.
+
+$ink-950: #101218;
+$ink-900: #15181f;
+$ink-850: #1a1e26;
+$ink-800: #1f242e;
+$ink-700: #2a303c;
+$ink-600: #363d4b;
+$line: #2f3644;
+$line-soft: #262c37;
+
+$text: #e9ebef;
+$text-dim: #a3abba;
+$text-faint: #6c7484;
+
+$ochre: #e0a32e;
+$ochre-dim: #8a6413;
+
+$axis-x: #d6304a;
+$axis-y: #2e9e5b;
+$axis-z: #2e6fd6;
+
+$paper: #eef0f3;
+
+$rail: 54px;
+$topbar: 46px;
+$statusbar: 38px;
+$panel: 276px;
+
+$radius: 4px;
+$radius-lg: 7px;
+
+@mixin mono {
+  font-family: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  font-feature-settings: 'tnum' 1;
+}
+
+@mixin label {
+  font-family: 'Barlow Semi Condensed', 'Barlow', system-ui, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-weight: 600;
+}
+
+@mixin focus-ring {
+  &:focus-visible {
+    outline: 2px solid $ochre;
+    outline-offset: 2px;
+  }
+}
