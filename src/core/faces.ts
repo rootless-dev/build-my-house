@@ -1,17 +1,17 @@
 /**
- * Extração de faces a partir do grafo de arestas.
+ * Face extraction from the edge graph.
  *
- * Este é o coração do comportamento "SketchUp": nenhuma face é armazenada.
- * A cada mudança nas arestas, reconstruímos o arranjo planar — para cada plano
- * encontrado no modelo, projetamos as arestas coplanares em 2D e percorremos
- * os meio-arcos (half-edges) para achar os ciclos mínimos. Ciclos com área
- * positiva viram faces; ciclos negativos contidos em uma face viram furos.
+ * This is the heart of the SketchUp-like behaviour: no face is ever stored.
+ * On every edge change we rebuild the planar arrangement — for each plane found
+ * in the model, coplanar edges are projected to 2D and the half-edges are walked
+ * to find the minimal cycles. Cycles with positive area become faces; negative
+ * cycles contained in a face become holes.
  *
- * Consequências que saem de graça:
- *  - fechar um laço cria a face;
- *  - desenhar um retângulo sobre uma face a divide em duas;
- *  - apagar uma aresta funde as faces vizinhas;
- *  - um retângulo dentro de outro vira furo (vão de janela).
+ * Consequences that come for free:
+ *  - closing a loop creates the face;
+ *  - drawing a rectangle over a face splits it in two;
+ *  - deleting an edge merges the neighbouring faces;
+ *  - a rectangle inside another becomes a hole (a window opening).
  */
 
 import type { Edge, Face, ID, Vertex } from './types';
@@ -46,7 +46,7 @@ export function faceKey(loop: ID[], holes: ID[][] = []): string {
   return `${outer}|${inner}`;
 }
 
-/** Remove "espinhos" (arestas soltas percorridas ida e volta) do ciclo. */
+/** Removes spikes (dangling edges walked out and back) from the cycle. */
 function pruneSpikes(loop: ID[]): ID[] {
   const out = loop.slice();
   let changed = true;
@@ -56,7 +56,7 @@ function pruneSpikes(loop: ID[]): ID[] {
       const prev = out[(i - 1 + out.length) % out.length];
       const next = out[(i + 1) % out.length];
       if (prev === next) {
-        // remove i e next (a ponta e o retorno)
+        // drop i and next (the tip and the way back)
         const j = (i + 1) % out.length;
         const rm = [i, j].sort((a, b) => b - a);
         for (const k of rm) out.splice(k, 1);
@@ -68,11 +68,11 @@ function pruneSpikes(loop: ID[]): ID[] {
   return out;
 }
 
-/** Um ponto estritamente interior a um polígono simples (para teste de furo). */
+/** A point strictly inside a simple polygon (used by the hole test). */
 function interiorPoint(poly: Vec2[]): Vec2 {
   const n = poly.length;
   if (n < 3) return poly[0] ?? [0, 0];
-  // vértice mais à esquerda-baixo é sempre convexo
+  // the bottom-left-most vertex is always convex
   let vi = 0;
   for (let i = 1; i < n; i++) {
     if (poly[i][0] < poly[vi][0] || (poly[i][0] === poly[vi][0] && poly[i][1] < poly[vi][1])) vi = i;
@@ -118,7 +118,7 @@ function canonicalPlane(n: Vec3, point: Vec3): PlaneDef | null {
 
 const planeKey = (p: PlaneDef) => `${q(p.n[0], 3)},${q(p.n[1], 3)},${q(p.n[2], 3)},${q(p.d, 3)}`;
 
-/** Enumera todos os planos candidatos: pares de arestas incidentes num vértice. */
+/** Enumerates every candidate plane: pairs of edges incident to a vertex. */
 function collectPlanes(vertices: Map<ID, Vertex>, edges: Map<ID, Edge>): PlaneDef[] {
   const incident = new Map<ID, ID[]>();
   for (const e of edges.values()) {
@@ -146,7 +146,7 @@ function collectPlanes(vertices: Map<ID, Vertex>, edges: Map<ID, Edge>): PlaneDe
   return [...planes.values()];
 }
 
-/** Percorre o arranjo planar de um conjunto de arestas coplanares. */
+/** Walks the planar arrangement of a set of coplanar edges. */
 function traversePlane(
   plane: PlaneDef,
   planeEdges: Edge[],
@@ -260,7 +260,7 @@ export function extractFaces(
         if (pos.area <= size + 1e-9) continue;
         if (pointInPolygon2(probe, pos.pts2)) {
           host = pos;
-          break; // positives ordenadas por área: a primeira que contém é a menor
+          break; // positives are sorted by area: the first container is the smallest
         }
       }
       if (!host) continue;
@@ -300,21 +300,21 @@ export function extractFaces(
     }
   }
 
-  // As faces apagadas saem antes de orientar: se ficassem, as arestas de um
-  // vão teriam três faces e a casca não seria percorrida por inteiro.
+  // Suppressed faces are dropped before orienting: kept around, the edges of an
+  // opening would have three faces and the shell walk would not complete.
   const live = suppressed ? result.filter((f) => !suppressed.has(f.key)) : result;
   orientShells(live, vertices);
   return live;
 }
 
 /**
- * Deixa cada casca fechada com as normais para fora, para que o lado "frente"
- * (branco) fique visível por fora e o "verso" (azul) por dentro.
+ * Leaves every closed shell with its normals pointing outwards, so the front
+ * side (white) shows on the outside and the back side (blue) on the inside.
  */
 function orientShells(faces: Face[], vertices: Map<ID, Vertex>): void {
   if (!faces.length) return;
-  // Os furos entram na adjacência: sem isso, o miolo de uma parede oca fica
-  // desconectado do anel de topo e a orientação sai invertida.
+  // Holes take part in adjacency: without them the core of a hollow wall is
+  // disconnected from the top ring and the orientation comes out inverted.
   const loopsOf = (f: Face): ID[][] => [f.loop, ...f.holes];
   const edgeMap = new Map<string, { fi: number; dir: 1 | -1 }[]>();
   faces.forEach((f, fi) => {
@@ -358,7 +358,7 @@ function orientShells(faces: Face[], vertices: Map<ID, Vertex>): void {
       }
     }
 
-    // volume com sinal do componente
+    // signed volume of the component
     let vol = 0;
     for (const fi of component) {
       for (const raw of loopsOf(faces[fi])) {

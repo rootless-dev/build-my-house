@@ -5,26 +5,26 @@ import { dist3 } from '../core/math';
 import type { ViewStyle } from '../viewer/ModelView';
 import type { Viewport } from '../viewer/Viewport';
 
-type Tab = 'modelo' | 'materiais' | 'ajustes';
+type Tab = 'model' | 'materials' | 'settings';
 
 const STYLES: { id: ViewStyle; name: string }[] = [
-  { id: 'sombreado', name: 'Sombreado' },
-  { id: 'oculta', name: 'Linha oculta' },
-  { id: 'linhas', name: 'Só arestas' },
-  { id: 'raiox', name: 'Raio-X' },
+  { id: 'shaded', name: 'Sombreado' },
+  { id: 'hiddenline', name: 'Linha oculta' },
+  { id: 'wireframe', name: 'Só arestas' },
+  { id: 'xray', name: 'Raio-X' },
 ];
 
 export function RightPanel({ vp, open }: { vp: Viewport | null; open: boolean }) {
-  const [tab, setTab] = useState<Tab>('modelo');
+  const [tab, setTab] = useState<Tab>('model');
 
   return (
     <aside className={`panel${open ? '' : ' panel--hidden'}`} aria-label="Painel do projeto">
       <div className="panel__tabs" role="tablist">
         {(
           [
-            ['modelo', 'Modelo'],
-            ['materiais', 'Materiais'],
-            ['ajustes', 'Ajustes'],
+            ['model', 'Modelo'],
+            ['materials', 'Materiais'],
+            ['settings', 'Ajustes'],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -40,15 +40,15 @@ export function RightPanel({ vp, open }: { vp: Viewport | null; open: boolean })
         ))}
       </div>
       <div className="panel__body">
-        {tab === 'modelo' && <ModeloTab />}
-        {tab === 'materiais' && <MateriaisTab vp={vp} />}
-        {tab === 'ajustes' && <AjustesTab vp={vp} />}
+        {tab === 'model' && <ModelTab />}
+        {tab === 'materials' && <MaterialsTab vp={vp} />}
+        {tab === 'settings' && <SettingsTab vp={vp} />}
       </div>
     </aside>
   );
 }
 
-function ModeloTab() {
+function ModelTab() {
   const rev = useApp((s) => s.modelRev);
   const unit = useApp((s) => s.unit);
   const selection = useApp((s) => s.selection);
@@ -81,16 +81,16 @@ function ModeloTab() {
       edges: model.edges.size,
       vertices: model.vertices.size,
       area: faces.reduce((s, f) => s + f.area, 0),
-      cotas: model.dimensions.size,
-      textos: model.notes.size,
-      guias: model.guides.size,
+      dimensions: model.dimensions.size,
+      notes: model.notes.size,
+      guides: model.guides.size,
       selArea,
       selLength,
       selFaces,
       selEdges,
       size: b ? ([b.max[0] - b.min[0], b.max[1] - b.min[1], b.max[2] - b.min[2]] as const) : null,
     };
-    // rev entra de propósito: o modelo muda fora do React
+    // rev is in the deps on purpose: the model changes outside React
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rev, selection]);
 
@@ -132,11 +132,11 @@ function ModeloTab() {
         <h2 className="group__title">Anotações</h2>
         <dl className="readout">
           <dt>Cotas</dt>
-          <dd>{stats.cotas}</dd>
+          <dd>{stats.dimensions}</dd>
           <dt>Textos</dt>
-          <dd>{stats.textos}</dd>
+          <dd>{stats.notes}</dd>
           <dt>Guias</dt>
-          <dd>{stats.guias}</dd>
+          <dd>{stats.guides}</dd>
         </dl>
       </section>
 
@@ -157,7 +157,7 @@ function ModeloTab() {
   );
 }
 
-function MateriaisTab({ vp }: { vp: Viewport | null }) {
+function MaterialsTab({ vp }: { vp: Viewport | null }) {
   const active = useApp((s) => s.activeMaterial);
   const setActive = useApp((s) => s.setActiveMaterial);
   const selection = useApp((s) => s.selection);
@@ -167,7 +167,7 @@ function MateriaisTab({ vp }: { vp: Viewport | null }) {
   const [color, setColor] = useState('#c86a3b');
   const [name, setName] = useState('');
 
-  // rev entra de propósito: a paleta vive no modelo, fora do React
+  // rev is in the deps on purpose: the palette lives in the model, outside React
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const materials = useMemo(() => [...model.materials.values()], [rev]);
   const groups = useMemo(() => {
@@ -184,7 +184,7 @@ function MateriaisTab({ vp }: { vp: Viewport | null }) {
       vp?.refreshModel();
       commit('Pintar seleção');
     } else {
-      setTool('pintar');
+      setTool('paint');
     }
   };
 
@@ -234,13 +234,13 @@ function MateriaisTab({ vp }: { vp: Viewport | null }) {
       <section>
         <h2 className="group__title">Novo material</h2>
         <div className="field">
-          <label htmlFor="mat-cor">Cor</label>
-          <input id="mat-cor" type="color" value={color} onChange={(e) => setColor(e.target.value)} />
+          <label htmlFor="mat-color">Cor</label>
+          <input id="mat-color" type="color" value={color} onChange={(e) => setColor(e.target.value)} />
         </div>
         <div className="field">
-          <label htmlFor="mat-nome">Nome</label>
+          <label htmlFor="mat-name">Nome</label>
           <input
-            id="mat-nome"
+            id="mat-name"
             type="text"
             value={name}
             placeholder="Ex.: madeira clara"
@@ -276,7 +276,7 @@ function MateriaisTab({ vp }: { vp: Viewport | null }) {
   );
 }
 
-function AjustesTab({ vp }: { vp: Viewport | null }) {
+function SettingsTab({ vp }: { vp: Viewport | null }) {
   const style = useApp((s) => s.style);
   const setStyle = useApp((s) => s.setStyle);
   const unit = useApp((s) => s.unit);
@@ -338,17 +338,17 @@ function AjustesTab({ vp }: { vp: Viewport | null }) {
       <section>
         <h2 className="group__title">Medidas</h2>
         <div className="field">
-          <label htmlFor="unidade">Unidade</label>
-          <select id="unidade" value={unit} onChange={(e) => setUnit(e.target.value as Unit)}>
+          <label htmlFor="unit">Unidade</label>
+          <select id="unit" value={unit} onChange={(e) => setUnit(e.target.value as Unit)}>
             <option value="m">metros</option>
             <option value="cm">centímetros</option>
             <option value="mm">milímetros</option>
           </select>
         </div>
         <div className="field">
-          <label htmlFor="lados">Lados do polígono</label>
+          <label htmlFor="polygon-sides">Lados do polígono</label>
           <input
-            id="lados"
+            id="polygon-sides"
             type="number"
             min={3}
             max={64}

@@ -6,23 +6,23 @@ import type { Overlay } from '../viewer/Overlay';
 import type { Unit } from '../core/units';
 
 export type ToolId =
-  | 'selecionar'
-  | 'linha'
-  | 'retangulo'
-  | 'circulo'
-  | 'poligono'
-  | 'arco'
-  | 'empurrar'
-  | 'mover'
-  | 'girar'
-  | 'escala'
-  | 'deslocar'
-  | 'borracha'
-  | 'pintar'
-  | 'trena'
-  | 'cotar'
-  | 'texto'
-  | 'orbitar'
+  | 'select'
+  | 'line'
+  | 'rectangle'
+  | 'circle'
+  | 'polygon'
+  | 'arc'
+  | 'pushpull'
+  | 'move'
+  | 'rotate'
+  | 'scale'
+  | 'offset'
+  | 'eraser'
+  | 'paint'
+  | 'tape'
+  | 'dimension'
+  | 'text'
+  | 'orbit'
   | 'pan';
 
 export interface PointerInfo {
@@ -36,7 +36,7 @@ export interface PointerInfo {
   snap: Snap;
 }
 
-/** Serviços que o viewport oferece às ferramentas. */
+/** Services the viewport offers to the tools. */
 export interface ToolHost {
   readonly model: Model;
   readonly inference: Inference;
@@ -49,7 +49,7 @@ export interface ToolHost {
   refreshModel(): void;
   commit(label: string): void;
   status(text: string): void;
-  /** Atualiza a caixa de medidas: valor exibido e o que ela espera receber. */
+  /** Updates the measurement box: displayed value and what it expects. */
   measure(value: string, hint: string): void;
   getSelection(): EntityRef[];
   setSelection(refs: EntityRef[]): void;
@@ -90,11 +90,11 @@ export abstract class Tool {
   pointerMove(_p: PointerInfo): void {}
   pointerUp(_p: PointerInfo): void {}
   doubleClick(_p: PointerInfo): void {}
-  /** Devolve true se consumiu a tecla. */
+  /** Returns true when the key was consumed. */
   key(_e: KeyboardEvent): boolean {
     return false;
   }
-  /** Valor confirmado na caixa de medidas. Devolve true se aplicou. */
+  /** Value confirmed in the measurement box. Returns true when applied. */
   value(_text: string): boolean {
     return false;
   }
@@ -104,7 +104,7 @@ export abstract class Tool {
   }
 }
 
-/** Trata as setas do teclado como travas de eixo, igual ao SketchUp. */
+/** Treats the arrow keys as axis locks, the same way SketchUp does. */
 export function handleAxisKey(host: ToolHost, e: KeyboardEvent): boolean {
   const map: Record<string, 'x' | 'y' | 'z'> = {
     ArrowRight: 'x',

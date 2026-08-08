@@ -5,17 +5,27 @@ import { TopBar } from './TopBar';
 import { ToolRail } from './ToolRail';
 import { RightPanel } from './RightPanel';
 import { StatusBar } from './StatusBar';
-import '../styles/app.scss';
+import { useAutosave } from './useAutosave';
+import { saveCurrentProject } from '../storage/save';
 
-export default function App() {
+export default function App({ onExit }: { onExit: () => void }) {
   const [vp, setVp] = useState<Viewport | null>(null);
   const [panelOpen, setPanelOpen] = useState(true);
   const measureRef = useRef<HTMLInputElement>(null);
 
   const onReady = useCallback((instance: Viewport | null) => setVp(instance), []);
 
-  // Digitar um número em qualquer lugar leva direto à caixa de medidas,
-  // como acontece no SketchUp.
+  useAutosave(vp);
+
+  // Leaving for the menu must not lose work: write before the scene unmounts,
+  // and refresh the thumbnail so the card matches what was on screen.
+  const backToMenu = useCallback(async () => {
+    await saveCurrentProject(vp, { thumbnail: true });
+    onExit();
+  }, [vp, onExit]);
+
+  // Typing a digit anywhere jumps straight to the measurement box, the way it
+  // works in SketchUp.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -32,7 +42,12 @@ export default function App() {
 
   return (
     <div className="app">
-      <TopBar vp={vp} panelOpen={panelOpen} onTogglePanel={() => setPanelOpen((v) => !v)} />
+      <TopBar
+        vp={vp}
+        panelOpen={panelOpen}
+        onTogglePanel={() => setPanelOpen((v) => !v)}
+        onExit={() => void backToMenu()}
+      />
       <ToolRail />
       <ViewportCanvas onReady={onReady} />
       <RightPanel vp={vp} open={panelOpen} />

@@ -4,14 +4,14 @@ import type { Model } from './model';
 import { planeBasis, projectToPlane, signedArea, type Vec3 } from './math';
 
 export interface Tessellation {
-  /** Pontos do contorno seguidos dos furos, na ordem usada por `tris`. */
+  /** Outline points followed by the holes, in the order used by `tris`. */
   points: Vec3[];
-  /** Coordenadas UV planares (metros) para mapeamento de textura. */
+  /** Planar UV coordinates (metres) for texture mapping. */
   uvs: [number, number][];
   tris: number[];
 }
 
-/** Triangula uma face (com furos) projetando-a no seu próprio plano. */
+/** Triangulates a face (holes included) by projecting it onto its own plane. */
 export function tessellateFace(model: Model, face: Face): Tessellation | null {
   const origin = model.vertexPos(face.loop[0]);
   const [u, v] = planeBasis(face.normal);
@@ -19,7 +19,7 @@ export function tessellateFace(model: Model, face: Face): Tessellation | null {
   const to2 = (p: Vec3) => projectToPlane(p, origin, u, v);
   const outer3 = face.loop.map((id) => model.vertexPos(id));
   let outer2 = outer3.map(to2);
-  // ShapeUtils espera contorno anti-horário
+  // ShapeUtils expects a counter-clockwise contour
   if (signedArea(outer2) < 0) {
     outer3.reverse();
     outer2 = outer3.map(to2);

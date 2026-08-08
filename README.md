@@ -11,6 +11,34 @@ npm install
 npm run dev
 ```
 
+## As três telas
+
+1. **Carregamento** — não é enfeite: espera as fontes, testa se há WebGL (e diz
+   qual placa respondeu), baixa o chunk do editor com o three.js, abre o banco
+   local e lê a lista de projetos. Se alguma etapa falhar, ela para ali, explica
+   o motivo e oferece tentar de novo.
+2. **Menu** — a biblioteca de projetos: pontos de partida prontos, os recentes
+   com miniatura, busca, ordenação, grade ou lista, renomear, duplicar e
+   lixeira com restauração. Arrastar um `.casa` para a janela abre o arquivo.
+3. **Editor** — a prancheta de sempre. O botão *Projetos* grava e volta ao menu.
+
+## Onde os projetos ficam
+
+No **IndexedDB da origem**, ou seja: no perfil do navegador, na máquina de quem
+está usando — nada sobe para servidor nenhum. Foi escolhido no lugar do
+`localStorage` por três motivos: guarda objetos estruturados e blobs (as
+miniaturas são WebP renderizadas pelo próprio viewport), a cota é de centenas de
+MB em vez de ~5 MB de texto, e a escrita não bloqueia a thread principal.
+
+Na primeira execução o app pede `navigator.storage.persist()`. Concedido, o
+navegador promete não descartar os dados quando o disco apertar — o rodapé do
+menu mostra se a permissão saiu e quanto espaço está em uso.
+
+O salvamento é automático: cada operação confirmada agenda uma gravação 1,5 s
+depois, e sair da aba grava na hora. Ainda assim, `.casa` continua ali para quem
+quiser uma cópia em disco de verdade — o único formato que sobrevive a limpar os
+dados do navegador.
+
 ## Como funciona o modelo
 
 O ponto central é que **faces não são armazenadas**. O modelo guarda só vértices
@@ -145,7 +173,8 @@ cd /tmp/pages && python3 -m http.server 8099
 ## Arquivos
 
 - `.casa` — projeto completo (JSON), abre de volta com toda a geometria,
-  materiais e faces apagadas.
+  materiais e faces apagadas. É o formato de troca e de backup; a biblioteca
+  interna guarda o mesmo conteúdo no IndexedDB.
 - `.obj` — malha triangulada com grupos por material, convertida para Y-up.
 - `.stl` — malha para impressão 3D.
 
@@ -159,8 +188,15 @@ src/
     model.ts      grafo, desenho, push/pull, offset, serialização
     tessellate.ts triangulação de face com furos
     units.ts      formatação e leitura de medidas
-    io.ts         .casa / .obj / .stl
+    io.ts         .casa (leve: o menu importa daqui sem puxar o three.js)
+    mesh-export.ts .obj / .stl (triangula, logo depende do three.js)
+    templates.ts  pontos de partida oferecidos no menu
     selftest.ts   verificação do núcleo (veja abaixo)
+  storage/    biblioteca de projetos no IndexedDB
+    idb.ts        envelope de promessas sobre a API crua
+    library.ts    CRUD, lixeira, miniaturas, cota e persistência
+    save.ts       ponte entre a store e a biblioteca
+  boot/       etapas reais da tela de carregamento
   viewer/     three.js
     Viewport.ts     cena, luzes, entrada, etiquetas DOM, despacho de ferramentas
     CameraRig.ts    órbita Z-up estilo SketchUp
@@ -171,8 +207,19 @@ src/
   tools/      uma classe por ferramenta
   state/      store zustand (o modelo é um singleton mutável fora do React)
   ui/         componentes React
+    Root.tsx      as três fases: carregamento → menu → editor
+    LoadingScreen.tsx / Home.tsx / App.tsx
+    load.ts       fronteira do `import()` que separa o chunk do editor
   styles/     SCSS
 ```
+
+O editor inteiro (com o three.js) fica atrás de um `import()` dinâmico, então a
+primeira tela baixa só React + menu. É esse download que a etapa "Motor 3D" da
+tela de carregamento está de fato esperando.
+
+**Idioma:** todo o código é escrito em inglês — nomes, comentários, valores de
+união e classes CSS. Só os textos que aparecem na tela são em português, porque
+o produto é em português.
 
 ### Verificação do núcleo geométrico
 

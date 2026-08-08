@@ -1,36 +1,54 @@
-import { useRef } from 'react';
 import { model, useApp } from '../state/store';
-import { download, exportJSON, exportOBJ, exportSTL, parseJSON } from '../core/io';
+import { download, exportJSON } from '../core/io';
+import { exportOBJ, exportSTL } from '../core/mesh-export';
+import { saveCurrentProject } from '../storage/save';
+import { agoText, slug } from './format';
 import { UiIcon } from './icons';
 import type { Viewport } from '../viewer/Viewport';
+import type { StandardView } from '../viewer/CameraRig';
 
-export function TopBar({ vp, panelOpen, onTogglePanel }: { vp: Viewport | null; panelOpen: boolean; onTogglePanel: () => void }) {
-  const fileRef = useRef<HTMLInputElement>(null);
+/** Camera presets offered in the bar, with their pt-BR labels. */
+const STANDARD_VIEWS: [StandardView, string][] = [
+  ['iso', 'iso'],
+  ['top', 'topo'],
+  ['front', 'frente'],
+  ['right', 'direita'],
+];
+
+const SAVE_TEXT: Record<string, string> = {
+  saving: 'salvando…',
+  dirty: 'alterações não salvas',
+  error: 'falha ao salvar',
+};
+
+export function TopBar({
+  vp,
+  panelOpen,
+  onTogglePanel,
+  onExit,
+}: {
+  vp: Viewport | null;
+  panelOpen: boolean;
+  onTogglePanel: () => void;
+  onExit: () => void;
+}) {
   const name = useApp((s) => s.projectName);
   const setName = useApp((s) => s.setProjectName);
   const undoStack = useApp((s) => s.undoStack);
   const redoStack = useApp((s) => s.redoStack);
   const undo = useApp((s) => s.undo);
   const redo = useApp((s) => s.redo);
-  const reset = useApp((s) => s.resetProject);
-  const loadSnapshot = useApp((s) => s.loadSnapshot);
-  const pushToast = useApp((s) => s.pushToast);
+  const saveState = useApp((s) => s.saveState);
+  const lastSavedAt = useApp((s) => s.lastSavedAt);
 
-  const safeName = name.trim().replace(/\s+/g, '-').toLowerCase() || 'casa';
-
-  const openFile = async (file: File) => {
-    try {
-      const snap = parseJSON(await file.text());
-      loadSnapshot(snap, file.name.replace(/\.(casa|json)$/i, ''));
-    } catch (err) {
-      pushToast(err instanceof Error ? err.message : 'Não deu para ler esse arquivo.');
-    }
-  };
+  const safeName = slug(name);
+  const saveText =
+    SAVE_TEXT[saveState] ?? (lastSavedAt ? `salvo ${agoText(lastSavedAt)}` : 'ainda não salvo');
 
   return (
     <header className="topbar">
       <div className="topbar__brand">
-        {/* Em telas estreitas a marca encolhe para a sigla. */}
+        {/* On narrow screens the wordmark shrinks to the initials. */}
         <span className="topbar__mark topbar__mark--full">
           Build <span className="topbar__mark-weak">my</span> House
         </span>
@@ -38,59 +56,50 @@ export function TopBar({ vp, panelOpen, onTogglePanel }: { vp: Viewport | null; 
         <span className="topbar__sub">modelagem 3d</span>
       </div>
 
-      <input
-        className="topbar__name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        aria-label="Nome do projeto"
-        spellCheck={false}
-      />
+      <div className="topbar__project">
+        <input
+          className="topbar__name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          aria-label="Nome do projeto"
+          spellCheck={false}
+        />
+        <span className={`topbar__save topbar__save--${saveState}`}>{saveText}</span>
+      </div>
 
       <div className="topbar__group">
+        <button type="button" className="tbtn" onClick={onExit} title="Voltar para a lista de projetos">
+          {UiIcon.menu}
+          <span>Projetos</span>
+        </button>
         <button
           type="button"
           className="tbtn"
-          onClick={() => {
-            reset();
-            vp?.refreshModel();
-            vp?.zoomExtents();
-          }}
+          onClick={() => void saveCurrentProject(vp, { thumbnail: true })}
+          disabled={saveState === 'saving'}
+          title="Gravar na biblioteca do navegador"
         >
-          {UiIcon.novo}
-          <span>Novo</span>
+          {UiIcon.save}
+          <span>Salvar</span>
         </button>
-        <button type="button" className="tbtn" onClick={() => fileRef.current?.click()}>
-          {UiIcon.abrir}
-          <span>Abrir</span>
-        </button>
+      </div>
+
+      <div className="topbar__group">
         <button
           type="button"
           className="tbtn"
           onClick={() => download(`${safeName}.casa`, exportJSON(model), 'application/json')}
+          title="Baixar uma cópia em arquivo"
         >
-          {UiIcon.salvar}
-          <span>Salvar</span>
+          {UiIcon.export}
+          <span>.casa</span>
         </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".casa,.json,application/json"
-          hidden
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void openFile(file);
-            e.target.value = '';
-          }}
-        />
-      </div>
-
-      <div className="topbar__group">
         <button type="button" className="tbtn" onClick={() => download(`${safeName}.obj`, exportOBJ(model, safeName))}>
-          {UiIcon.exportar}
+          {UiIcon.export}
           <span>OBJ</span>
         </button>
         <button type="button" className="tbtn" onClick={() => download(`${safeName}.stl`, exportSTL(model, safeName))}>
-          {UiIcon.exportar}
+          {UiIcon.export}
           <span>STL</span>
         </button>
       </div>
@@ -107,7 +116,7 @@ export function TopBar({ vp, panelOpen, onTogglePanel }: { vp: Viewport | null; 
           title={undoStack.length ? `Desfazer ${undoStack[undoStack.length - 1].label}` : 'Nada a desfazer'}
           aria-label="Desfazer"
         >
-          {UiIcon.desfazer}
+          {UiIcon.undo}
         </button>
         <button
           type="button"
@@ -120,20 +129,20 @@ export function TopBar({ vp, panelOpen, onTogglePanel }: { vp: Viewport | null; 
           title={redoStack.length ? `Refazer ${redoStack[redoStack.length - 1].label}` : 'Nada a refazer'}
           aria-label="Refazer"
         >
-          {UiIcon.refazer}
+          {UiIcon.redo}
         </button>
       </div>
 
       <div className="topbar__spacer" />
 
       <div className="topbar__group">
-        {(['iso', 'topo', 'frente', 'direita'] as const).map((view) => (
+        {STANDARD_VIEWS.map(([view, label]) => (
           <button key={view} type="button" className="tbtn" onClick={() => vp?.setStandardView(view)}>
-            <span>{view}</span>
+            <span>{label}</span>
           </button>
         ))}
         <button type="button" className="tbtn tbtn--icon" onClick={() => vp?.zoomExtents()} title="Enquadrar tudo" aria-label="Enquadrar tudo">
-          {UiIcon.enquadrar}
+          {UiIcon.zoomExtents}
         </button>
       </div>
 
@@ -145,7 +154,7 @@ export function TopBar({ vp, panelOpen, onTogglePanel }: { vp: Viewport | null; 
           aria-label="Mostrar ou esconder o painel"
           aria-pressed={panelOpen}
         >
-          {UiIcon.painel}
+          {UiIcon.panel}
         </button>
       </div>
     </header>

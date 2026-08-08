@@ -6,8 +6,8 @@ import { formatArea, formatLength, parseLength } from '../core/units';
 const sameRef = (a: EntityRef, b: EntityRef): boolean =>
   a.kind === b.kind && (a.kind === 'face' ? a.key === (b as typeof a).key : (a as { id: number }).id === (b as { id: number }).id);
 
-export class SelecionarTool extends Tool {
-  readonly id: ToolId = 'selecionar';
+export class SelectTool extends Tool {
+  readonly id: ToolId = 'select';
   cursor = 'default';
 
   hint(): string {
@@ -46,8 +46,8 @@ export class SelecionarTool extends Tool {
   }
 }
 
-export class BorrachaTool extends Tool {
-  readonly id: ToolId = 'borracha';
+export class EraserTool extends Tool {
+  readonly id: ToolId = 'eraser';
   cursor = 'cell';
   private down = false;
   private touched = false;
@@ -95,7 +95,7 @@ export class BorrachaTool extends Tool {
       }
       this.touched = true;
       this.host.refreshModel();
-    } else if (ref.kind === 'guia') {
+    } else if (ref.kind === 'guide') {
       this.host.model.deleteAnnotation(ref);
       this.touched = true;
       this.host.refreshModel();
@@ -107,8 +107,8 @@ export class BorrachaTool extends Tool {
   }
 }
 
-export class PintarTool extends Tool {
-  readonly id: ToolId = 'pintar';
+export class PaintTool extends Tool {
+  readonly id: ToolId = 'paint';
   cursor = 'copy';
 
   hint(): string {
@@ -137,18 +137,18 @@ export class PintarTool extends Tool {
 }
 
 /**
- * Trena: mede e deixa guias, como a fita métrica do SketchUp.
- *  - a partir de uma aresta, arrastar cria uma linha-guia paralela;
- *  - a partir de um ponto, o segundo clique deixa um ponto-guia;
- *  - com Ctrl, só mede e não cria nada.
+ * Tape measure: measures and leaves guides, like SketchUp's tape.
+ *  - starting from an edge, dragging creates a parallel guide line;
+ *  - starting from a point, the second click leaves a guide point;
+ *  - with Ctrl held it only measures and creates nothing.
  */
-export class TrenaTool extends Tool {
-  readonly id: ToolId = 'trena';
+export class TapeTool extends Tool {
+  readonly id: ToolId = 'tape';
   private from: Vec3 | null = null;
   private edge: { a: Vec3; b: Vec3 } | null = null;
   private target: Vec3 | null = null;
-  private distancia = 0;
-  private somenteMedir = false;
+  private distance = 0;
+  private measureOnly = false;
 
   hint(): string {
     if (this.edge) return 'Afaste para criar a guia paralela, ou digite a distância. Ctrl só mede.';
@@ -157,12 +157,12 @@ export class TrenaTool extends Tool {
   }
 
   pointerDown(p: PointerInfo): void {
-    this.somenteMedir = p.ctrl;
+    this.measureOnly = p.ctrl;
     if (this.edge || this.from) {
       this.finish(p);
       return;
     }
-    if (p.snap.entity?.kind === 'edge' && p.snap.type === 'aresta') {
+    if (p.snap.entity?.kind === 'edge' && p.snap.type === 'edge') {
       const [a, b] = this.host.model.edgePoints(p.snap.entity.id);
       this.edge = { a, b };
       this.host.inference.base = p.snap.point;
@@ -179,11 +179,11 @@ export class TrenaTool extends Tool {
       const dir = norm3(sub3(this.edge.b, this.edge.a));
       const rel = sub3(p.snap.point, this.edge.a);
       const perp = sub3(rel, mul3(dir, dot3(rel, dir)));
-      this.distancia = len3(perp);
+      this.distance = len3(perp);
       this.target = add3(this.edge.a, perp);
       const reach = mul3(dir, Math.max(dist3(this.edge.a, this.edge.b), 1) * 1.5);
-      this.host.overlay.guide(sub3(this.target, reach), add3(this.target, reach), 'neutro');
-      this.host.measure(formatLength(this.distancia, this.host.unit), 'afastamento');
+      this.host.overlay.guide(sub3(this.target, reach), add3(this.target, reach), 'neutral');
+      this.host.measure(formatLength(this.distance, this.host.unit), 'afastamento');
       this.host.requestRender();
       return;
     }
@@ -192,30 +192,30 @@ export class TrenaTool extends Tool {
       return;
     }
     this.target = p.snap.point;
-    this.distancia = dist3(this.from, this.target);
+    this.distance = dist3(this.from, this.target);
     this.host.overlay.polyline([this.from, this.target]);
     if (p.snap.axis && p.snap.guideFrom) this.host.overlay.guide(p.snap.guideFrom, this.target, p.snap.axis);
-    this.host.measure(formatLength(this.distancia, this.host.unit), 'medida');
+    this.host.measure(formatLength(this.distance, this.host.unit), 'medida');
     this.host.requestRender();
   }
 
   private finish(p?: PointerInfo): void {
-    const soMedir = this.somenteMedir || p?.ctrl;
-    if (this.edge && this.target && this.distancia > 1e-4) {
+    const measureOnly = this.measureOnly || p?.ctrl;
+    if (this.edge && this.target && this.distance > 1e-4) {
       const dir = norm3(sub3(this.edge.b, this.edge.a));
-      if (!soMedir) {
+      if (!measureOnly) {
         this.host.model.addGuide(this.target, dir);
         this.host.refreshModel();
         this.host.commit('Guia paralela');
       }
-      this.host.toast(`Afastamento: ${formatLength(this.distancia, this.host.unit)}`);
-    } else if (this.from && this.target && this.distancia > 1e-4) {
-      if (!soMedir) {
+      this.host.toast(`Afastamento: ${formatLength(this.distance, this.host.unit)}`);
+    } else if (this.from && this.target && this.distance > 1e-4) {
+      if (!measureOnly) {
         this.host.model.addGuide(this.target, null);
         this.host.refreshModel();
         this.host.commit('Ponto-guia');
       }
-      this.host.toast(`Distância: ${formatLength(this.distancia, this.host.unit)}`);
+      this.host.toast(`Distância: ${formatLength(this.distance, this.host.unit)}`);
     }
     this.cancel();
   }
@@ -231,12 +231,12 @@ export class TrenaTool extends Tool {
       const unit = len3(perp) > 1e-6 ? norm3(perp) : null;
       if (!unit) return false;
       this.target = add3(this.edge.a, mul3(unit, d));
-      this.distancia = d;
+      this.distance = d;
     } else if (this.from && this.target) {
       const dir = norm3(sub3(this.target, this.from));
       if (!len3(dir)) return false;
       this.target = add3(this.from, mul3(dir, d));
-      this.distancia = d;
+      this.distance = d;
     }
     this.finish();
     return true;
@@ -254,8 +254,8 @@ export class TrenaTool extends Tool {
     this.from = null;
     this.edge = null;
     this.target = null;
-    this.distancia = 0;
-    this.somenteMedir = false;
+    this.distance = 0;
+    this.measureOnly = false;
     this.reset();
     this.host.status(this.hint());
   }
@@ -296,9 +296,9 @@ class NavTool extends Tool {
   }
 }
 
-export class OrbitarTool extends NavTool {
+export class OrbitTool extends NavTool {
   constructor(host: ConstructorParameters<typeof Tool>[0]) {
-    super(host, 'orbitar', 'orbit');
+    super(host, 'orbit', 'orbit');
   }
 }
 

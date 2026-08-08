@@ -11,17 +11,17 @@ export interface Edge {
   id: ID;
   a: ID;
   b: ID;
-  /** Aresta suave: escondida no render, mas ainda define geometria. */
+  /** Soft edge: hidden when rendering, but still defines geometry. */
   smooth?: boolean;
 }
 
 /**
- * Faces não são armazenadas: elas são *derivadas* do grafo de arestas a cada
- * alteração topológica, como no SketchUp. Fechar um laço cria a face; apagar
- * uma aresta funde as faces vizinhas; desenhar dentro de uma face a divide.
+ * Faces are not stored: they are *derived* from the edge graph on every
+ * topological change, as in SketchUp. Closing a loop creates the face;
+ * deleting an edge merges the neighbours; drawing inside a face splits it.
  */
 export interface Face {
-  /** Chave estável derivada dos vértices do contorno — persiste material/estado. */
+  /** Stable key derived from the outline vertices — keeps material and state. */
   key: string;
   loop: ID[];
   holes: ID[][];
@@ -37,30 +37,30 @@ export interface Material {
   opacity: number;
   roughness: number;
   metalness: number;
-  /** Grupo para agrupar na paleta da interface. */
+  /** Bucket used to group the material in the interface palette. */
   group: string;
 }
 
 /**
- * Âncora de anotação. Guarda sempre a posição, e o vértice quando existir —
- * assim a cota acompanha a geometria ao ser movida, mas sobrevive se o vértice
- * for apagado.
+ * Annotation anchor. Always stores the position, and the vertex when there is
+ * one — so the dimension follows the geometry as it moves, but survives the
+ * vertex being deleted.
  */
 export interface Anchor {
   v?: ID;
   p: Vec3;
 }
 
-/** Cota: a medida marcada no modelo, com linhas de chamada e etiqueta. */
+/** Dimension: a measurement marked on the model, with witness lines and label. */
 export interface Dimension {
   id: ID;
   a: Anchor;
   b: Anchor;
-  /** Deslocamento da linha de cota em relação ao segmento medido. */
+  /** Offset of the dimension line relative to the measured segment. */
   offset: Vec3;
 }
 
-/** Texto com linha de chamada, preso a um ponto do modelo. */
+/** Text with a leader line, pinned to a point of the model. */
 export interface Note {
   id: ID;
   anchor: Anchor;
@@ -68,7 +68,7 @@ export interface Note {
   text: string;
 }
 
-/** Geometria de construção: linha-guia (com `dir`) ou ponto-guia. */
+/** Construction geometry: guide line (with `dir`) or guide point. */
 export interface Guide {
   id: ID;
   p: Vec3;
@@ -79,9 +79,9 @@ export type EntityRef =
   | { kind: 'vertex'; id: ID }
   | { kind: 'edge'; id: ID }
   | { kind: 'face'; key: string }
-  | { kind: 'cota'; id: ID }
-  | { kind: 'texto'; id: ID }
-  | { kind: 'guia'; id: ID };
+  | { kind: 'dimension'; id: ID }
+  | { kind: 'note'; id: ID }
+  | { kind: 'guide'; id: ID };
 
 export interface ModelSnapshot {
   version: 1 | 2;
@@ -91,7 +91,7 @@ export interface ModelSnapshot {
   faceMaterials: [string, string][];
   materials: Material[];
   nextId: number;
-  /** A partir da versão 2. */
+  /** Version 2 onwards. */
   dimensions?: Dimension[];
   notes?: Note[];
   guides?: Guide[];

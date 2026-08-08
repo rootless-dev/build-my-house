@@ -18,9 +18,9 @@ import {
 } from '../core/math';
 import { formatAngle, formatLength, parseAngle, parseFactor, parseLength } from '../core/units';
 
-/** Empurrar/Puxar: dá volume a uma face. Clique, mova, clique de novo. */
-export class EmpurrarTool extends Tool {
-  readonly id: ToolId = 'empurrar';
+/** Push/Pull: gives a face volume. Click, move, click again. */
+export class PushPullTool extends Tool {
+  readonly id: ToolId = 'pushpull';
   private face: Face | null = null;
   private active = false;
   private dist = 0;
@@ -86,22 +86,22 @@ export class EmpurrarTool extends Tool {
     if (!this.active || !this.face) return false;
     const d = parseLength(text, this.host.unit);
     if (d === null) return false;
-    // Um sinal digitado manda; sem sinal, vale a direção que o mouse indicou.
-    const negativo = d < 0 || (d >= 0 && this.dist < 0);
-    this.dist = negativo ? -Math.abs(d) : Math.abs(d);
+    // A typed sign wins; without one, the direction the mouse indicated holds.
+    const negative = d < 0 || (d >= 0 && this.dist < 0);
+    this.dist = negative ? -Math.abs(d) : Math.abs(d);
     this.apply();
     return true;
   }
 
   private apply(): void {
-    // A face precisa continuar existindo: um desfazer ou um projeto novo no
-    // meio da operação deixaria para trás uma referência morta.
-    const alvo = this.face && this.host.model.faces().find((f) => f.key === this.face!.key);
-    if (!alvo || Math.abs(this.dist) < 1e-4) {
+    // The face has to still exist: an undo or a new project mid-operation would
+    // leave a dead reference behind.
+    const target = this.face && this.host.model.faces().find((f) => f.key === this.face!.key);
+    if (!target || Math.abs(this.dist) < 1e-4) {
       this.cancel();
       return;
     }
-    const result = this.host.model.pushPull(alvo, this.dist);
+    const result = this.host.model.pushPull(target, this.dist);
     this.lastDist = this.dist;
     this.host.refreshModel();
     this.host.commit('Empurrar/Puxar');
@@ -130,7 +130,7 @@ export class EmpurrarTool extends Tool {
   }
 }
 
-/** Base para as transformações que mexem em vértices já existentes. */
+/** Base class for transforms that move existing vertices. */
 abstract class TransformTool extends Tool {
   protected ids: ID[] = [];
   protected original: [ID, Vec3][] = [];
@@ -165,9 +165,9 @@ abstract class TransformTool extends Tool {
   }
 }
 
-/** Mover: pega um ponto de referência e leva a seleção junto. */
-export class MoverTool extends Tool {
-  readonly id: ToolId = 'mover';
+/** Move: grabs a reference point and carries the selection along. */
+export class MoveTool extends Tool {
+  readonly id: ToolId = 'move';
   private origin: Vec3 | null = null;
   private ids: ID[] = [];
   private original: [ID, Vec3][] = [];
@@ -268,9 +268,9 @@ export class MoverTool extends Tool {
   }
 }
 
-/** Girar: centro, referência, ângulo. O eixo vem do plano onde você clicou. */
-export class GirarTool extends TransformTool {
-  readonly id: ToolId = 'girar';
+/** Rotate: centre, reference, angle. The axis comes from the plane clicked on. */
+export class RotateTool extends TransformTool {
+  readonly id: ToolId = 'rotate';
   private center: Vec3 | null = null;
   private axis: Vec3 = [0, 0, 1];
   private refDir: Vec3 | null = null;
@@ -309,7 +309,7 @@ export class GirarTool extends TransformTool {
     }
     this.host.overlay.clear();
     if (!this.refDir) {
-      this.host.overlay.guide(this.center, p.snap.point, 'neutro');
+      this.host.overlay.guide(this.center, p.snap.point, 'neutral');
       this.host.measure('', 'ângulo');
       this.host.requestRender();
       return;
@@ -321,8 +321,8 @@ export class GirarTool extends TransformTool {
     const sign = Math.sign(dot3(cross3(this.refDir, proj), this.axis)) || 1;
     this.angle = Math.acos(cosA) * sign;
     this.applyAngle(this.angle);
-    this.host.overlay.guide(this.center, add3(this.center, mul3(this.refDir, 2)), 'neutro');
-    this.host.overlay.guide(this.center, p.snap.point, 'neutro');
+    this.host.overlay.guide(this.center, add3(this.center, mul3(this.refDir, 2)), 'neutral');
+    this.host.overlay.guide(this.center, p.snap.point, 'neutral');
     this.host.measure(formatAngle(this.angle), 'ângulo');
     this.host.requestRender();
   }
@@ -372,9 +372,9 @@ export class GirarTool extends TransformTool {
   }
 }
 
-/** Deslocar (offset): copia o contorno de uma face para dentro ou para fora. */
-export class DeslocarTool extends Tool {
-  readonly id: ToolId = 'deslocar';
+/** Offset: copies a face outline inwards or outwards. */
+export class OffsetTool extends Tool {
+  readonly id: ToolId = 'offset';
   private face: Face | null = null;
   private dist = 0;
   private startScreen = { x: 0, y: 0 };
@@ -434,20 +434,20 @@ export class DeslocarTool extends Tool {
     if (!this.face) return false;
     const d = parseLength(text, this.host.unit);
     if (d === null) return false;
-    // Um sinal digitado manda; sem sinal, vale a direção que o mouse indicou.
-    const negativo = d < 0 || (d >= 0 && this.dist < 0);
-    this.dist = negativo ? -Math.abs(d) : Math.abs(d);
+    // A typed sign wins; without one, the direction the mouse indicated holds.
+    const negative = d < 0 || (d >= 0 && this.dist < 0);
+    this.dist = negative ? -Math.abs(d) : Math.abs(d);
     this.apply();
     return true;
   }
 
   private apply(): void {
-    const alvo = this.face && this.host.model.faces().find((f) => f.key === this.face!.key);
-    if (!alvo || Math.abs(this.dist) < 1e-4) {
+    const target = this.face && this.host.model.faces().find((f) => f.key === this.face!.key);
+    if (!target || Math.abs(this.dist) < 1e-4) {
       this.cancel();
       return;
     }
-    this.host.model.addPolyline(this.host.model.offsetLoop(alvo, this.dist), true);
+    this.host.model.addPolyline(this.host.model.offsetLoop(target, this.dist), true);
     this.host.refreshModel();
     this.host.commit('Deslocar');
     this.face = null;
@@ -472,9 +472,9 @@ export class DeslocarTool extends Tool {
   }
 }
 
-/** Escala: aumenta ou reduz a seleção em torno do centro dela. */
-export class EscalaTool extends TransformTool {
-  readonly id: ToolId = 'escala';
+/** Scale: grows or shrinks the selection around its own centre. */
+export class ScaleTool extends TransformTool {
+  readonly id: ToolId = 'scale';
   private center: Vec3 | null = null;
   private base = 0;
   private factor = 1;
@@ -522,7 +522,7 @@ export class EscalaTool extends TransformTool {
     this.factor = dist3(p.snap.point, this.center) / this.base;
     this.applyFactor(this.factor);
     this.host.overlay.clear();
-    this.host.overlay.guide(this.center, p.snap.point, 'neutro');
+    this.host.overlay.guide(this.center, p.snap.point, 'neutral');
     this.host.measure(`${this.factor.toFixed(3).replace('.', ',')}×`, 'fator');
     this.host.requestRender();
   }

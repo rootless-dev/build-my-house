@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
-import { CameraRig } from './CameraRig';
+import { CameraRig, type StandardView } from './CameraRig';
 import { ModelView } from './ModelView';
 import { Overlay, AXIS_COLORS } from './Overlay';
 import { Inference } from './Inference';
@@ -10,10 +10,10 @@ import { refKey } from './annotations';
 import { model, useApp } from '../state/store';
 import type { EntityRef } from '../core/types';
 import type { PointerInfo, Tool, ToolHost, ToolId } from '../tools/base';
-import { ArcoTool, CirculoTool, LinhaTool, PoligonoTool, RetanguloTool } from '../tools/draw';
-import { DeslocarTool, EmpurrarTool, EscalaTool, GirarTool, MoverTool } from '../tools/modify';
-import { BorrachaTool, OrbitarTool, PanTool, PintarTool, SelecionarTool, TrenaTool } from '../tools/utility';
-import { CotarTool, TextoTool } from '../tools/annotate';
+import { ArcTool, CircleTool, LineTool, PolygonTool, RectangleTool } from '../tools/draw';
+import { OffsetTool, PushPullTool, ScaleTool, RotateTool, MoveTool } from '../tools/modify';
+import { EraserTool, OrbitTool, PanTool, PaintTool, SelectTool, TapeTool } from '../tools/utility';
+import { DimensionTool, TextTool } from '../tools/annotate';
 import type { Vec3 } from '../core/math';
 
 const GROUND_SIZE = 400;
@@ -86,7 +86,7 @@ export class Viewport implements ToolHost {
 
     this.inference = new Inference(model, this.modelView);
 
-    // HUD imperativo: marcador de inferência e etiqueta, fora do React.
+    // Imperative HUD: inference marker and label, kept outside React.
     this.hud = document.createElement('div');
     this.hud.className = 'viewport-hud';
     this.marker = document.createElement('div');
@@ -106,13 +106,13 @@ export class Viewport implements ToolHost {
     this.loop();
   }
 
-  // ------------------------------------------------------------------- cena
+  // ------------------------------------------------------------------ scene
 
   private buildLights(): void {
     const hemi = new THREE.HemisphereLight(0xdceaf7, 0xa89c88, 1.5);
     this.scene.add(hemi);
     const sun = new THREE.DirectionalLight(0xfff6e8, 2.1);
-    sun.name = 'sol';
+    sun.name = 'sun';
     sun.position.set(16, -26, 34);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
@@ -156,7 +156,7 @@ export class Viewport implements ToolHost {
     this.groundGroup.add(mkGrid(minor, 0x9aa3ad, 0.24));
     this.groundGroup.add(mkGrid(major, 0x6c7783, 0.34));
 
-    // eixos do modelo, no estilo do SketchUp
+    // model axes, SketchUp style
     const axisLen = 30;
     const mkAxis = (dir: Vec3, color: number, dashed: boolean) => {
       const geo2 = new LineSegmentsGeometry();
@@ -185,27 +185,27 @@ export class Viewport implements ToolHost {
 
   private axisMaterials: LineMaterial[] = [];
 
-  // -------------------------------------------------------------- ferramentas
+  // -------------------------------------------------------------------- tools
 
   private registerTools(): void {
     const list: Tool[] = [
-      new SelecionarTool(this),
-      new LinhaTool(this),
-      new RetanguloTool(this),
-      new CirculoTool(this),
-      new PoligonoTool(this),
-      new ArcoTool(this),
-      new EmpurrarTool(this),
-      new MoverTool(this),
-      new GirarTool(this),
-      new EscalaTool(this),
-      new DeslocarTool(this),
-      new BorrachaTool(this),
-      new PintarTool(this),
-      new TrenaTool(this),
-      new CotarTool(this),
-      new TextoTool(this),
-      new OrbitarTool(this),
+      new SelectTool(this),
+      new LineTool(this),
+      new RectangleTool(this),
+      new CircleTool(this),
+      new PolygonTool(this),
+      new ArcTool(this),
+      new PushPullTool(this),
+      new MoveTool(this),
+      new RotateTool(this),
+      new ScaleTool(this),
+      new OffsetTool(this),
+      new EraserTool(this),
+      new PaintTool(this),
+      new TapeTool(this),
+      new DimensionTool(this),
+      new TextTool(this),
+      new OrbitTool(this),
       new PanTool(this),
     ];
     for (const t of list) this.tools.set(t.id, t);
@@ -224,7 +224,7 @@ export class Viewport implements ToolHost {
     this.requestRender();
   }
 
-  /** Aborta a operação em andamento — usado quando o modelo é trocado. */
+  /** Aborts the operation in progress — used when the model is swapped. */
   cancelTool(): void {
     this.current?.cancel();
     this.inference.reset();
@@ -262,7 +262,7 @@ export class Viewport implements ToolHost {
     for (const ref of state.selection) {
       if (ref.kind === 'face') faces.add(ref.key);
       else if (ref.kind === 'edge') edges.add(ref.id);
-      else if (ref.kind === 'cota' || ref.kind === 'texto' || ref.kind === 'guia') {
+      else if (ref.kind === 'dimension' || ref.kind === 'note' || ref.kind === 'guide') {
         annotations.add(refKey(ref.kind, ref.id));
       }
     }
@@ -321,7 +321,7 @@ export class Viewport implements ToolHost {
     this.requestRender();
   }
 
-  // ------------------------------------------------------------------ eventos
+  // ------------------------------------------------------------------- events
 
   private attachEvents(): void {
     const el = this.renderer.domElement;
@@ -352,7 +352,7 @@ export class Viewport implements ToolHost {
     try {
       this.renderer.domElement.setPointerCapture(e.pointerId);
     } catch {
-      /* ponteiro sintético (testes) não pode ser capturado */
+      /* a synthetic pointer (tests) cannot be captured */
     }
     const navMode = e.button === 1 ? (e.shiftKey ? 'pan' : 'orbit') : e.button === 2 ? 'pan' : e.altKey && e.button === 0 ? 'orbit' : null;
     if (navMode) {
@@ -406,23 +406,23 @@ export class Viewport implements ToolHost {
   };
 
   private shortcuts: Record<string, ToolId> = {
-    ' ': 'selecionar',
-    l: 'linha',
-    r: 'retangulo',
-    c: 'circulo',
-    g: 'poligono',
-    a: 'arco',
-    p: 'empurrar',
-    m: 'mover',
-    q: 'girar',
-    s: 'escala',
-    f: 'deslocar',
-    e: 'borracha',
-    b: 'pintar',
-    t: 'trena',
-    d: 'cotar',
-    x: 'texto',
-    o: 'orbitar',
+    ' ': 'select',
+    l: 'line',
+    r: 'rectangle',
+    c: 'circle',
+    g: 'polygon',
+    a: 'arc',
+    p: 'pushpull',
+    m: 'move',
+    q: 'rotate',
+    s: 'scale',
+    f: 'offset',
+    e: 'eraser',
+    b: 'paint',
+    t: 'tape',
+    d: 'dimension',
+    x: 'text',
+    o: 'orbit',
     h: 'pan',
   };
 
@@ -488,9 +488,9 @@ export class Viewport implements ToolHost {
     this.commit('Apagar seleção');
   }
 
-  // ---------------------------------------------------------------- etiquetas
+  // ------------------------------------------------------------------- labels
 
-  /** Reconstrói os elementos DOM das cotas e textos a partir do modelo. */
+  /** Rebuilds the DOM elements of dimensions and notes from the model. */
   private syncLabels(): void {
     const specs = this.modelView.labels;
     const keep = new Set(specs.map((s) => s.key));
@@ -514,7 +514,7 @@ export class Viewport implements ToolHost {
       }
       if (el.textContent !== spec.text) el.textContent = spec.text;
       el.classList.toggle('annotation-label--on', spec.selected);
-      el.classList.toggle('annotation-label--nota', spec.kind === 'texto');
+      el.classList.toggle('annotation-label--note', spec.kind === 'note');
     }
     this.positionLabels();
   }
@@ -539,7 +539,7 @@ export class Viewport implements ToolHost {
   private labelRef(key: string): EntityRef | null {
     const [kind, raw] = key.split(':');
     const id = Number(raw);
-    if (kind === 'cota' || kind === 'texto' || kind === 'guia') return { kind, id } as EntityRef;
+    if (kind === 'dimension' || kind === 'note' || kind === 'guide') return { kind, id } as EntityRef;
     return null;
   }
 
@@ -549,7 +549,7 @@ export class Viewport implements ToolHost {
     const key = (e.currentTarget as HTMLElement).dataset.key;
     const ref = key ? this.labelRef(key) : null;
     if (!ref) return;
-    if (useApp.getState().tool === 'borracha') {
+    if (useApp.getState().tool === 'eraser') {
       model.deleteAnnotation(ref);
       this.refreshModel();
       this.commit('Apagar anotação');
@@ -568,12 +568,12 @@ export class Viewport implements ToolHost {
     e.stopPropagation();
     const key = (e.currentTarget as HTMLElement).dataset.key;
     const ref = key ? this.labelRef(key) : null;
-    if (!ref || ref.kind !== 'texto') return;
+    if (!ref || ref.kind !== 'note') return;
     const note = model.notes.get(ref.id);
     if (!note) return;
     const el = e.currentTarget as HTMLElement;
     el.contentEditable = 'true';
-    el.classList.add('annotation-label--editando');
+    el.classList.add('annotation-label--editing');
     el.focus();
     const range = document.createRange();
     range.selectNodeContents(el);
@@ -582,12 +582,12 @@ export class Viewport implements ToolHost {
     sel?.addRange(range);
     const finish = () => {
       el.contentEditable = 'false';
-      el.classList.remove('annotation-label--editando');
+      el.classList.remove('annotation-label--editing');
       el.removeEventListener('blur', finish);
       el.removeEventListener('keydown', onKey);
-      const texto = (el.textContent ?? '').trim();
-      if (texto && texto !== note.text) {
-        model.setNoteText(note.id, texto);
+      const edited = (el.textContent ?? '').trim();
+      if (edited && edited !== note.text) {
+        model.setNoteText(note.id, edited);
         this.refreshModel();
         this.commit('Editar texto');
       } else {
@@ -624,7 +624,7 @@ export class Viewport implements ToolHost {
     this.markerLabel.style.color = css;
   }
 
-  // --------------------------------------------------------------- ciclo/vista
+  // -------------------------------------------------------------- loop / view
 
   applyMeasure(text: string): boolean {
     const applied = this.current.value(text);
@@ -641,7 +641,7 @@ export class Viewport implements ToolHost {
     this.requestRender();
   }
 
-  setStandardView(view: 'iso' | 'topo' | 'frente' | 'direita' | 'esquerda' | 'tras'): void {
+  setStandardView(view: StandardView): void {
     this.rig.setStandardView(view);
     this.requestRender();
   }
@@ -649,9 +649,9 @@ export class Viewport implements ToolHost {
   resize(): void {
     const { width, height } = this.size;
     if (!width || !height) return;
-    // Precisa atualizar também o estilo: o construtor deixou width/height em px
-    // no elemento, e esse inline vence o CSS — sem isto o canvas não acompanha
-    // o painel da direita recolhendo.
+    // The style has to be updated too: the constructor left width/height in px
+    // on the element, and that inline value beats the CSS — without this the
+    // canvas does not follow the right-hand panel collapsing.
     this.renderer.setSize(width, height);
     this.rig.setAspect(width / height);
     const dpr = this.renderer.getPixelRatio();
@@ -661,7 +661,37 @@ export class Viewport implements ToolHost {
     this.requestRender();
   }
 
-  /** Direção da câmera em coordenadas de tela, para a bússola de eixos. */
+  /**
+   * Thumbnail of the current framing, for the project grid in the menu.
+   *
+   * The renderer is shrunk to thumbnail size, drawn once, and restored — all
+   * synchronously. The pixels are copied into an offscreen 2D canvas first
+   * because the WebP encoder is asynchronous: awaiting it while the viewport
+   * is still shrunk lets the compositor paint several stretched frames.
+   * The copy also survives the drawing buffer being cleared after compositing,
+   * which is why the read has to happen right after `render`.
+   */
+  async captureThumbnail(width = 560, height = 350): Promise<Blob | null> {
+    this.renderer.setPixelRatio(1);
+    this.renderer.setSize(width, height, false);
+    this.rig.setAspect(width / height);
+    this.modelView.setResolution(width, height);
+    this.overlay.setResolution(width, height);
+    for (const m of this.axisMaterials) m.resolution.set(width, height);
+    this.renderer.render(this.scene, this.camera);
+
+    const frame = document.createElement('canvas');
+    frame.width = width;
+    frame.height = height;
+    frame.getContext('2d')?.drawImage(this.renderer.domElement, 0, 0);
+
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.resize();
+
+    return new Promise((resolve) => frame.toBlob(resolve, 'image/webp', 0.82));
+  }
+
+  /** Camera direction in screen coordinates, for the axis compass. */
   compassAngles(): { x: [number, number]; y: [number, number]; z: [number, number] } {
     const project = (v: THREE.Vector3): [number, number] => {
       const a = v.clone().project(this.camera);

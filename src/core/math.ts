@@ -1,16 +1,16 @@
 /**
- * Núcleo matemático. Tudo trabalha com tuplas [x, y, z] para manter o modelo
- * serializável e independente do three.js. Convenção Z-up (como no SketchUp):
- * X = vermelho, Y = verde, Z = azul (altura).
+ * Math core. Everything works with [x, y, z] tuples so the model stays
+ * serialisable and independent of three.js. Z-up convention (like SketchUp):
+ * X = red, Y = green, Z = blue (height).
  */
 
 export type Vec3 = [number, number, number];
 export type Vec2 = [number, number];
 
 export const EPS = 1e-9;
-/** Tolerância de fusão de pontos, em metros (0,1 mm). */
+/** Point merge tolerance, in metres (0.1 mm). */
 export const MERGE_TOL = 1e-4;
-/** Tolerância de coplanaridade, em metros. */
+/** Coplanarity tolerance, in metres. */
 export const PLANE_TOL = 1e-4;
 
 export const v3 = (x = 0, y = 0, z = 0): Vec3 => [x, y, z];
@@ -38,7 +38,7 @@ export const lerp3 = (a: Vec3, b: Vec3, t: number): Vec3 => [
 ];
 export const eq3 = (a: Vec3, b: Vec3, tol = MERGE_TOL): boolean => dist3(a, b) <= tol;
 
-/** Arredonda para descartar ruído de ponto flutuante em chaves de hash. */
+/** Rounds away floating point noise in hash keys. */
 export const q = (n: number, digits = 5): number => {
   const f = 10 ** digits;
   const r = Math.round(n * f) / f;
@@ -49,7 +49,7 @@ export const AXIS_X: Vec3 = [1, 0, 0];
 export const AXIS_Y: Vec3 = [0, 1, 0];
 export const AXIS_Z: Vec3 = [0, 0, 1];
 
-/** Base ortonormal (u, v) para um plano de normal `n`. */
+/** Orthonormal basis (u, v) for a plane with normal `n`. */
 export function planeBasis(n: Vec3): [Vec3, Vec3] {
   const a: Vec3 = Math.abs(n[2]) < 0.9 ? AXIS_Z : AXIS_X;
   const u = norm3(cross3(a, n));
@@ -66,7 +66,7 @@ export function unprojectFromPlane(p: Vec2, origin: Vec3, u: Vec3, v: Vec3): Vec
   return add3(origin, add3(mul3(u, p[0]), mul3(v, p[1])));
 }
 
-/** Área com sinal (shoelace). Positiva = anti-horária. */
+/** Signed area (shoelace). Positive means counter-clockwise. */
 export function signedArea(pts: Vec2[]): number {
   let s = 0;
   for (let i = 0, n = pts.length; i < n; i++) {
@@ -88,7 +88,7 @@ export function pointInPolygon2(pt: Vec2, poly: Vec2[]): boolean {
   return inside;
 }
 
-/** Distância 2D de um ponto ao contorno de um polígono. */
+/** 2D distance from a point to a polygon outline. */
 export function distToPolygon2(pt: Vec2, poly: Vec2[]): number {
   let best = Infinity;
   for (let i = 0; i < poly.length; i++) {
@@ -103,7 +103,7 @@ export function distToPolygon2(pt: Vec2, poly: Vec2[]): number {
   return best;
 }
 
-/** Distância de um ponto ao segmento [a,b] e o parâmetro t do pé da perpendicular. */
+/** Distance from a point to segment [a,b], plus the foot's parameter t. */
 export function closestOnSegment(p: Vec3, a: Vec3, b: Vec3): { point: Vec3; t: number; dist: number } {
   const ab = sub3(b, a);
   const l2 = dot3(ab, ab);
@@ -113,8 +113,8 @@ export function closestOnSegment(p: Vec3, a: Vec3, b: Vec3): { point: Vec3; t: n
 }
 
 /**
- * Ponto mais próximo entre duas retas infinitas. Retorna os parâmetros e a
- * distância — usado pela inferência de eixo e pela interseção de arestas.
+ * Closest points between two infinite lines. Returns the parameters and the
+ * distance — used by axis inference and by edge intersection.
  */
 export function lineLineClosest(
   p1: Vec3,
@@ -137,7 +137,7 @@ export function lineLineClosest(
   return { t1, t2, dist: dist3(pa, pb), a: pa, b: pb };
 }
 
-/** Interseção raio × plano. Retorna null se paralelo ou atrás da origem. */
+/** Ray × plane intersection. Null when parallel or behind the origin. */
 export function rayPlane(ro: Vec3, rd: Vec3, po: Vec3, pn: Vec3): Vec3 | null {
   const denom = dot3(rd, pn);
   if (Math.abs(denom) < 1e-9) return null;
@@ -146,7 +146,7 @@ export function rayPlane(ro: Vec3, rd: Vec3, po: Vec3, pn: Vec3): Vec3 | null {
   return add3(ro, mul3(rd, t));
 }
 
-/** Normal de um polígono 3D pelo método de Newell (robusto a quase-degenerados). */
+/** Normal of a 3D polygon via Newell's method (robust on near-degenerates). */
 export function newellNormal(pts: Vec3[]): Vec3 {
   let nx = 0;
   let ny = 0;
@@ -172,7 +172,7 @@ export function centroid3(pts: Vec3[]): Vec3 {
   return [c[0] / n, c[1] / n, c[2] / n];
 }
 
-/** Rotação de `p` em torno do eixo (origem, dir) por `ang` radianos. */
+/** Rotates `p` around the (origin, axis) line by `ang` radians. */
 export function rotateAround(p: Vec3, origin: Vec3, axis: Vec3, ang: number): Vec3 {
   const k = norm3(axis);
   const v = sub3(p, origin);
